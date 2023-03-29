@@ -100,3 +100,10 @@ vehicle ID: 11 The Annihilator - The Lego Movie
 ## Portal interaction
 
 This is currently under development.
+
+## Sources of inspiration
+
+* [LD-ToyPad-Emulator](https://github.com/Berny23/LD-ToyPad-Emulator)
+* [liblegodimensionsportal](https://github.com/GrahamBriggs/liblegodimensionsportal)
+* [lego_dimensions_protocol](https://github.com/woodenphone/lego_dimensions_protocol)
+* [ldnfctags](https://github.com/phogar/ldnfctags)
