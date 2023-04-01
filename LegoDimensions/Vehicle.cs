@@ -6,7 +6,7 @@ namespace LegoDimensions
     /// <summary>
     /// Vehicle class for Lego Dimensions.
     /// </summary>
-    public class Vehicle
+    public class Vehicle : ILegoTag
     {
         /// <summary>
         /// The ID of the vehicle.

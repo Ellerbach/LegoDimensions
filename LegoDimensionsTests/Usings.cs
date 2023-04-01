@@ -2,3 +2,4 @@
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
 global using Xunit;
+global using LegoDimensions;

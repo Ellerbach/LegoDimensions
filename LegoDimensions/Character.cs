@@ -6,7 +6,7 @@ namespace LegoDimensions
     /// <summary>
     /// Character class for Lego Dimensions.
     /// </summary>
-    public class Character
+    public class Character : ILegoTag
     {
         /// <summary>
         /// Gets or sets the ID of the character.

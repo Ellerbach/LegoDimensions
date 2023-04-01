@@ -12,4 +12,8 @@
     <PackageReference Include="PInvoke.WinUsb" Version="0.7.124" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LegoDimensions\LegoDimensions.csproj" />
+  </ItemGroup>
+
 </Project>
