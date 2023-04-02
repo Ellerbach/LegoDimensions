@@ -256,7 +256,7 @@ namespace LegoDimensions
                                 }
 
                                 // We should have our 0x24
-                                if (LegoTag.IsVehicle(message.Payload.AsSpan(4, 4).ToArray()))
+                                if (LegoTag.IsVehicle(message.Payload.AsSpan(8, 4).ToArray()))
                                 {
                                     var vecId = LegoTag.GetVehiculeId(message.Payload.AsSpan(0, 4).ToArray());
                                     var vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == vecId);
@@ -281,7 +281,7 @@ namespace LegoDimensions
                                     continue;
                                 }
 
-                                var carId = LegoTag.GetVehiculeId(message.Payload);
+                                var carId = LegoTag.GetCharacterId(_legoTag[pad].CardUid, message.Payload);
                                 var car = Character.Characters.FirstOrDefault(m => m.Id == carId);
                                 _legoTag[pad].LegoTag = car;
                                 LegoTagEvent?.Invoke(this, new LegoTagEventArgs(_legoTag[pad]));
