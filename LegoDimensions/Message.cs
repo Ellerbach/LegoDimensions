@@ -22,6 +22,11 @@ namespace LegoDimensions
         public MessageType MessageType { get; set; }
 
         /// <summary>
+        /// Gets or sets the message source.
+        /// </summary>
+        public MessageSource MessageSource { get; set; } = MessageSource.Machine;
+
+        /// <summary>
         /// Gets or sets the payload.
         /// </summary>
         public byte[] Payload { get; set; } = new byte[0];
@@ -54,12 +59,13 @@ namespace LegoDimensions
         }
 
         /// <summary>
-        /// Creates a message from a message. This is mainly used in test.
+        /// Creates a message from a message.
         /// </summary>
         /// <param name="readBuffer">The 32 bytes read buffer.</param>
+        /// <param name="messageSource">The source of the message.</param>
         /// <returns>A message.</returns>
         /// <exception cref="ArgumentException">Not correct length, invalid type, invalid payload size.</exception>
-        public static Message CreateFromBuffer(byte[] readBuffer)
+        public static Message CreateFromBuffer(byte[] readBuffer, MessageSource messageSource)
         {
             // Check if lenght is 32
             if (readBuffer.Length != 32)
@@ -84,15 +90,29 @@ namespace LegoDimensions
             {
                 if (length > 1)
                 {
-                    // We should have a payload
-                    MessageCommand messageCommand = (MessageCommand)readBuffer[2];
-                    byte messageId = readBuffer[3];
-                    if (readBuffer[length + 2] != GetChecksum(readBuffer.AsSpan(0, length + 2)))
+                    if (messageSource == MessageSource.Machine)
                     {
-                        throw new ArgumentException("Invalid checksum");
-                    }
+                        // We should have a payload
+                        MessageCommand messageCommand = (MessageCommand)readBuffer[2];
+                        byte messageId = readBuffer[3];
+                        if (readBuffer[length + 2] != GetChecksum(readBuffer.AsSpan(0, length + 2)))
+                        {
+                            throw new ArgumentException("Invalid checksum");
+                        }
 
-                    return new Message(messageCommand, messageType, readBuffer.AsSpan(4, length - 2).ToArray()) { MessageId = messageId };
+                        return new Message(messageCommand, messageType, readBuffer.AsSpan(4, length - 2).ToArray()) { MessageId = messageId, MessageSource = messageSource };
+                    }
+                    else
+                    {
+                        // We should have a payload
+                        byte messageId = readBuffer[2];
+                        if (readBuffer[length + 2] != GetChecksum(readBuffer.AsSpan(0, length + 2)))
+                        {
+                            throw new ArgumentException("Invalid checksum");
+                        }
+
+                        return new Message(MessageCommand.None, messageType, readBuffer.AsSpan(3, length - 1).ToArray()) { MessageId = messageId, MessageSource = messageSource };
+                    }
                 }
                 else
                 {
@@ -101,70 +121,12 @@ namespace LegoDimensions
                         throw new ArgumentException("Invalid checksum");
                     }
 
-                    return new Message(MessageCommand.None, messageType, new byte[0]);
+                    return new Message(MessageCommand.None, messageType, new byte[0]) { MessageSource = messageSource };
                 }
             }
             else
             {
-                return new Message(MessageCommand.None, messageType, readBuffer.AsSpan(2, length).ToArray());
-            }
-        }
-
-        /// <summary>
-        /// The message when incoming is different. It's either an event 0x56 either a message 0x56.
-        /// In case of event it's 0x56-lenght-pad-x-idx-presence-uid0..uid6-chk
-        /// In case of normal i's 0x56-lenght-msgid-payload-chk
-        /// </summary>
-        /// <param name="readBuffer">The buffer to create messagr from</param>
-        /// <returns>A message.</returns>
-        /// <exception cref="ArgumentException">Not correct length, invalid type, invalid payload size.</exception>
-        public static Message CreateFromBufferIncoming(byte[] readBuffer)
-        {
-            // Check if lenght is 32
-            if (readBuffer.Length != 32)
-            {
-                throw new ArgumentException("Message buffer is not 32 bytes.");
-            }
-
-            MessageType messageType = (MessageType)readBuffer[0];
-            // message type
-            if ((messageType != MessageType.Normal) && (messageType != MessageType.Event))
-            {
-                throw new ArgumentException("Invalid message type.");
-            }
-
-            int length = readBuffer[1];
-            if ((length < 1) || (length > 31))
-            {
-                throw new ArgumentException("Invalid payload size");
-            }
-
-            if (messageType == MessageType.Normal)
-            {
-                if (length > 1)
-                {
-                    // We should have a payload
-                    byte messageId = readBuffer[2];
-                    if (readBuffer[length + 2] != GetChecksum(readBuffer.AsSpan(0, length + 2)))
-                    {
-                        throw new ArgumentException("Invalid checksum");
-                    }
-
-                    return new Message(MessageCommand.None, messageType, readBuffer.AsSpan(3, length - 1).ToArray()) { MessageId = messageId };
-                }
-                else
-                {
-                    if (readBuffer[length + 2] != GetChecksum(readBuffer.AsSpan(0, length + 2)))
-                    {
-                        throw new ArgumentException("Invalid checksum");
-                    }
-
-                    return new Message(MessageCommand.None, messageType, new byte[0]);
-                }
-            }
-            else
-            {
-                return new Message(MessageCommand.None, messageType, readBuffer.AsSpan(2, length).ToArray());
+                return new Message(MessageCommand.None, messageType, readBuffer.AsSpan(2, length).ToArray()) { MessageSource = messageSource };
             }
         }
 

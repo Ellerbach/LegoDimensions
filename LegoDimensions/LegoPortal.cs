@@ -4,7 +4,7 @@
 using LibUsbDotNet;
 using LibUsbDotNet.LibUsb;
 using LibUsbDotNet.Main;
-using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Diagnostics;
 
 namespace LegoDimensions
@@ -26,16 +26,31 @@ namespace LegoDimensions
         private byte _messageId;
         private Thread _readThread;
         private CancellationTokenSource _cancelThread;
+        private ManualResetEvent _getColor;
+        private ManualResetEvent _getTagList;
+        private Color _padColor;
+        private List<PresentTag> _presentTags = new List<PresentTag>();
 
         // We do have only 3 Pads
         // This one is to store the last message ID request for details
         private List<PadTag> _padTag = new List<PadTag>();
+        private List<CommandId> _commandId = new List<CommandId>();
 
         /// <summary>
         /// Gets the first of default Lego Dimensions Portal.
         /// </summary>
         /// <returns>A Lego Dimensions Portal</returns>
-        public static LegoPortal GetFirstPortal() => new LegoPortal(GetPortals()[0]);
+        public static LegoPortal GetFirstPortal()
+        {
+            var portals = GetPortals();
+
+            if (portals.Length == 0)
+            {
+                throw new Exception("No Lego Dimensions Portal found.");
+            }
+
+            return new LegoPortal(portals[0]);
+        }
 
         /// <summary>
         /// Gets all the available USB device that matches the Lego Dimensions Portal.
@@ -55,7 +70,15 @@ namespace LegoDimensions
             return selectedDevice.ToArray();
         }
 
+        /// <summary>
+        /// Event when a tag is added or removed
+        /// </summary>
         public event EventHandler<LegoTagEventArgs>? LegoTagEvent;
+
+        /// <summary>
+        /// Gets the list of present tags.
+        /// </summary>
+        public IEnumerable<PresentTag> PresentTags => _presentTags;
 
         /// <summary>
         /// Creates a new instance of a Lego Dimensions Portal.
@@ -109,8 +132,30 @@ namespace LegoDimensions
         public void SetColor(Pad pad, Color color)
         {
             Message message = new Message(MessageCommand.Color);
-            message.AddPayload(color);
+            message.AddPayload(pad, color);
             SendMessage(message);
+        }
+
+        /// <summary>
+        /// Gets the color of a specific Pad.
+        /// </summary>
+        /// <param name="pad">The Pad to get the color.</param>
+        /// <returns></returns>
+        public Color GetColor(Pad pad)
+        {
+            Message message = new Message(MessageCommand.GetColor);
+            message.AddPayload(pad);
+            _getColor = new ManualResetEvent(false);
+            _commandId.Add(new CommandId(SendMessage(message), MessageCommand.GetColor));
+            // In case we won't get any color, use the default black one
+            _padColor = Color.Black;
+            // Wait maximum 2 seconds
+            while (!_getColor.WaitOne(2000))
+            {
+                // Wait for the color to be received
+            }
+
+            return _padColor;
         }
 
         /// <summary>
@@ -123,7 +168,6 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(true, padCenter, true, padLeft, true, padRight);
-            SendMessage(message);
         }
 
         /// <summary>
@@ -140,14 +184,26 @@ namespace LegoDimensions
         /// Flashes a color on a specific Pad.
         /// </summary>
         /// <param name="pad">The Pad(s) to flash.</param>
-        /// <param name="tickOn">The time to to stay on. The higher, the longer.</param>
-        /// <param name="tickOff">The time to stay off. The higher, the longer.</param>
-        /// <param name="tickCount">The number of pulses, 0xFF is forever.</param>
-        /// <param name="color"></param>
-        public void Flash(Pad pad, byte tickOn, byte tickOff, byte tickCount, Color color)
+        /// <param name="flashPad">The flash pad settings.</param>
+        public void Flash(Pad pad, FlashPad flashPad)
         {
             Message message = new Message(MessageCommand.Flash);
-            message.AddPayload(pad, tickOn, tickOff, tickCount, color);
+            message.AddPayload(pad, flashPad.TickOn, flashPad.TickOff, flashPad.TickCount, flashPad.Color);
+            SendMessage(message);
+        }
+
+        /// <summary>
+        /// Flashes a color on a all pads.
+        /// </summary>
+        /// <param name="flashPadCenter">The flash pad settings for center pad.</param>
+        /// <param name="flashPadLeft">The flash pad settings for pad left.</param>
+        /// <param name="flashPadRight">The flash pad settings for pad right.</param>
+        public void FlashAll(FlashPad flashPadCenter, FlashPad flashPadLeft, FlashPad flashPadRight)
+        {
+            Message message = new Message(MessageCommand.FlashAll);
+            message.AddPayload(flashPadCenter.Enabled, flashPadCenter.TickOn, flashPadCenter.TickOff, flashPadCenter.TickCount, flashPadCenter.Color);
+            message.AddPayload(flashPadLeft.Enabled, flashPadLeft.TickOn, flashPadLeft.TickOff, flashPadLeft.TickCount, flashPadLeft.Color);
+            message.AddPayload(flashPadRight.Enabled, flashPadRight.TickOn, flashPadRight.TickOff, flashPadRight.TickCount, flashPadRight.Color);
             SendMessage(message);
         }
 
@@ -155,15 +211,25 @@ namespace LegoDimensions
         /// Fades a color on a specific Pad.
         /// </summary>
         /// <param name="pad">The Pad(s) to fade.</param>
-        /// <param name="tickTime">>The time to to fade. The higher, the longer.</param>
-        /// <param name="tickCount">The fading behavior.</param>
-        /// <param name="oldColor">The old color to fade from.</param>
-        /// <param name="newColor">The new color to fade to.</param>
-        /// <returns></returns>
-        public void Fade(Pad pad, byte tickTime, ColorPulse tickCount, Color oldColor, Color newColor = default)
+        /// <param name="fadePad">The fade pad settings.</param>
+        public void Fade(Pad pad, FadePad fadePad)
         {
             Message message = new Message(MessageCommand.Fade);
-            message.AddPayload(pad, tickTime, (byte)tickCount, oldColor, newColor);
+            message.AddPayload(pad, fadePad.TickTime, fadePad.TickCount, fadePad.Color);
+            SendMessage(message);
+        }
+
+        /// <summary>
+        /// Fades a color on a specific Pad.
+        /// </summary>
+        /// <param name="pad">The Pad(s) to fade.</param>
+        /// <param name="fadePad">The fade pad settings.</param>
+        public void FadeAll(FadePad fadePadCenter, FadePad fadePadLeft, FadePad fadePadRight)
+        {
+            Message message = new Message(MessageCommand.FadeAll);
+            message.AddPayload(fadePadCenter.Enabled, fadePadCenter.TickTime, fadePadCenter.TickCount, fadePadCenter.Color);
+            message.AddPayload(fadePadLeft.Enabled, fadePadLeft.TickTime, fadePadLeft.TickCount, fadePadLeft.Color);
+            message.AddPayload(fadePadRight.Enabled, fadePadRight.TickTime, fadePadRight.TickCount, fadePadRight.Color);
             SendMessage(message);
         }
 
@@ -172,12 +238,25 @@ namespace LegoDimensions
         /// </summary>
         /// <param name="pad">The Pad(s) to fade.</param>
         /// <param name="tickTime">The time to to fade. The higher, the longer.</param>
-        /// <param name="tickCount">The fading behavior.</param>
-        public void FadeRandom(Pad pad, byte tickTime, ColorPulse tickCount)
+        /// <param name="tickCount">>The tick count. Even will stop on old color, odd on the new one.</param>
+        public void FadeRandom(Pad pad, byte tickTime, byte tickCount)
         {
             Message message = new Message(MessageCommand.FadeRandom);
-            message.AddPayload(pad, tickTime, (byte)tickCount);           
+            message.AddPayload(pad, tickTime, tickCount);
             SendMessage(message);
+        }
+
+        public IEnumerable<PresentTag> ListTags()
+        {
+            Message message = new Message(MessageCommand.TagList);
+            _getTagList = new ManualResetEvent(false);
+            _commandId.Add(new CommandId(SendMessage(message), MessageCommand.TagList));
+            while (!_getTagList.WaitOne(2000))
+            {
+                // Wait for the taglist to be received
+            }
+
+            return _presentTags;
         }
 
         /// <summary>
@@ -187,7 +266,7 @@ namespace LegoDimensions
         /// <param name="messageId">The message ID, leave to 0 to use the internal message count.</param>
         /// <returns>The message ID for the request.</returns>
         public byte SendMessage(Message message, byte messageId = 0)
-        {            ;
+        {
             var bytes = message.GetBytes(messageId == 0 ? IncreaseMessageId() : messageId);
             _endpointWriter.Write(bytes, ReadWriteTimeout, out int numBytes);
             // Assume it's awake if we send 32 bytes properly
@@ -206,10 +285,14 @@ namespace LegoDimensions
                 try
                 {
                     _endpointReader.Read(readBuffer, ReadWriteTimeout, out bytesRead);
-                    Debug.WriteLine($"REC: {BitConverter.ToString(readBuffer)}");
+                    if (bytesRead > 0)
+                    {
+                        Debug.WriteLine($"REC: {BitConverter.ToString(readBuffer)}");
+                    }
+
                     if (bytesRead == 32)
                     {
-                        var message = Message.CreateFromBufferIncoming(readBuffer);
+                        var message = Message.CreateFromBuffer(readBuffer, MessageSource.Portal);
                         if (message.MessageType == MessageType.Event)
                         {
                             // In the case of an event the Message Type event, all is in the payload
@@ -221,6 +304,7 @@ namespace LegoDimensions
                             }
 
                             bool present = message.Payload[3] == 0;
+                            var tadType = (TagType)message.Payload[1];
                             byte[] uuid = new byte[7];
                             Array.Copy(message.Payload, 4, uuid, 0, uuid.Length);
                             // Find the tage if existing in the list
@@ -231,13 +315,15 @@ namespace LegoDimensions
 
                                 if (legoTag == null)
                                 {
-                                    legoTag = new PadTag() { Pad = (Pad)pad, TagIndex = padIndex, Present = present, CardUid = uuid };
+                                    _presentTags.Add(new PresentTag((Pad)pad, tadType, padIndex));
+                                    legoTag = new PadTag() { Pad = (Pad)pad, TagIndex = padIndex, Present = present, CardUid = uuid, TagType = tadType };
                                     _padTag.Add(legoTag);
 
                                     // Ask for more wuth the read command for 0x24
                                     var msgToSend = new Message(MessageCommand.Read);
                                     msgToSend.AddPayload(padIndex, (byte)0x24);
                                     legoTag.LastMessageId = SendMessage(msgToSend);
+                                    _commandId.Add(new CommandId(legoTag.LastMessageId, MessageCommand.Read));
                                 }
                                 else
                                 {
@@ -250,6 +336,12 @@ namespace LegoDimensions
                                 {
                                     legoTag.Present = present;
                                     LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
+                                    var presentTag = _presentTags.FirstOrDefault(m => m.Pad == legoTag.Pad && m.Index == legoTag.TagIndex);
+                                    if (presentTag != null)
+                                    {
+                                        _presentTags.Remove(presentTag);
+                                    }
+
                                     _padTag.Remove(legoTag);
                                 }
                             }
@@ -257,8 +349,10 @@ namespace LegoDimensions
                         else if (message.MessageType == MessageType.Normal)
                         {
                             // In case the paylod is 17, then we do have a response to a read command
-                            if (message.MessageCommand == MessageCommand.None && message.Payload.Length == 17)
+                            var cmdId = _commandId.Where(m => m.MessageId == _messageId).FirstOrDefault();
+                            if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Read)
                             {
+                                _commandId.Remove(cmdId);
                                 var legoTag = _padTag.FirstOrDefault(m => m.LastMessageId == message.MessageId);
                                 if (legoTag == null)
                                 {
@@ -282,6 +376,25 @@ namespace LegoDimensions
 
                                 LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
                             }
+                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Color)
+                            {
+                                _commandId.Remove(cmdId);
+                                _padColor = Color.FromArgb(message.Payload[0], message.Payload[1], message.Payload[2]);
+                                _getColor.Set();
+                            }
+                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.TagList)
+                            {
+                                _commandId.Remove(cmdId);
+                                _presentTags.Clear();
+                                for (int i = 0; i < message.Payload.Length / 2; i++)
+                                {
+                                    PresentTag presentTag = new PresentTag((Pad)(message.Payload[i * 2] >> 4), (TagType)message.Payload[i * 2 + 1], (byte)(message.Payload[i * 2] & 0xF));
+                                    _presentTags.Add(presentTag);
+                                }
+
+                                _getTagList.Set();
+                            }
+
                         }
                     }
                 }
@@ -302,7 +415,8 @@ namespace LegoDimensions
         {
             _cancelThread.Cancel();
             // Make sure the thread is stopped
-            _readThread?.Join(); ;
+            _readThread?.Join();
+            _portal.ReleaseInterface(_portal.Configs[0].Interfaces[0].Number);
             _portal.Close();
             _portal.Dispose();
         }

@@ -16,5 +16,7 @@ namespace LegoDimensions
         public byte LastMessageId { get; set; }
 
         public ILegoTag? LegoTag { get; set; }
+
+        public TagType TagType { get; set; }
     }
 }
