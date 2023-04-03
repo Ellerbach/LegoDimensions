@@ -4,6 +4,7 @@
 using LibUsbDotNet;
 using LibUsbDotNet.LibUsb;
 using LibUsbDotNet.Main;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace LegoDimensions
@@ -28,9 +29,7 @@ namespace LegoDimensions
 
         // We do have only 3 Pads
         // This one is to store the last message ID request for details
-        private byte[] _tagMessageId = new byte[3];
-        // We'll keep track of the UUID and the character
-        private LegoTagEventArgs[] _legoTag = new LegoTagEventArgs[3];
+        private List<PadTag> _padTag = new List<PadTag>();
 
         /// <summary>
         /// Gets the first of default Lego Dimensions Portal.
@@ -94,8 +93,12 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.Wake);
             message.AddPayload("(c) LEGO 2014");
-            _messageId = 1;
+            _messageId = 0;
             SendMessage(message);
+            // TODO: investigate seeding
+            //message = new Message(MessageCommand.Seed);
+            //message.AddPayload(new byte[] { 0xaa, 0x6F, 0xC8, 0xCD, 0x21, 0x1E, 0xF8, 0xCE });
+            //SendMessage(message);
         }
 
         /// <summary>
@@ -107,7 +110,6 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.Color);
             message.AddPayload(color);
-            IncreaseMessageId();
             SendMessage(message);
         }
 
@@ -121,7 +123,6 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(true, padCenter, true, padLeft, true, padRight);
-            IncreaseMessageId();
             SendMessage(message);
         }
 
@@ -132,7 +133,6 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(false, Color.Black, false, Color.Black, false, Color.Black);
-            IncreaseMessageId();
             SendMessage(message);
         }
 
@@ -148,7 +148,6 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.Flash);
             message.AddPayload(pad, tickOn, tickOff, tickCount, color);
-            IncreaseMessageId();
             SendMessage(message);
         }
 
@@ -165,7 +164,6 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.Fade);
             message.AddPayload(pad, tickTime, (byte)tickCount, oldColor, newColor);
-            IncreaseMessageId();
             SendMessage(message);
         }
 
@@ -178,8 +176,7 @@ namespace LegoDimensions
         public void FadeRandom(Pad pad, byte tickTime, ColorPulse tickCount)
         {
             Message message = new Message(MessageCommand.FadeRandom);
-            message.AddPayload(pad, tickTime, (byte)tickCount);
-            IncreaseMessageId();
+            message.AddPayload(pad, tickTime, (byte)tickCount);           
             SendMessage(message);
         }
 
@@ -190,13 +187,12 @@ namespace LegoDimensions
         /// <param name="messageId">The message ID, leave to 0 to use the internal message count.</param>
         /// <returns>The message ID for the request.</returns>
         public byte SendMessage(Message message, byte messageId = 0)
-        {
-            byte msgId = _messageId;
-            var bytes = message.GetBytes(messageId == 0 ? _messageId++ : messageId);
+        {            ;
+            var bytes = message.GetBytes(messageId == 0 ? IncreaseMessageId() : messageId);
             _endpointWriter.Write(bytes, ReadWriteTimeout, out int numBytes);
             // Assume it's awake if we send 32 bytes properly
             Debug.WriteLine($"SND: {BitConverter.ToString(bytes)}");
-            return msgId;
+            return messageId == 0 ? _messageId : messageId;
         }
 
         private void ReadThread(object? obj)
@@ -213,11 +209,11 @@ namespace LegoDimensions
                     Debug.WriteLine($"REC: {BitConverter.ToString(readBuffer)}");
                     if (bytesRead == 32)
                     {
-                        var message = Message.CreateFromBuffer(readBuffer);
+                        var message = Message.CreateFromBufferIncoming(readBuffer);
                         if (message.MessageType == MessageType.Event)
                         {
                             // In the case of an event the Message Type event, all is in the payload
-                            byte pad = (byte)message.Payload[2];
+                            byte pad = (byte)message.Payload[0];
                             if ((pad < 1) || (pad > 3))
                             {
                                 // Not a valid message
@@ -225,66 +221,66 @@ namespace LegoDimensions
                             }
 
                             bool present = message.Payload[3] == 0;
+                            byte[] uuid = new byte[7];
+                            Array.Copy(message.Payload, 4, uuid, 0, uuid.Length);
+                            // Find the tage if existing in the list
+                            var legoTag = _padTag.FirstOrDefault(m => m.CardUid.SequenceEqual(uuid));
+                            byte padIndex = message.Payload[2];
                             if (present)
                             {
-                                _legoTag[pad - 1].Present = present;
 
-                                byte[] uuid = new byte[7];
-                                Array.Copy(message.Payload, 4, uuid, 0, uuid.Length);
-                                _legoTag[pad - 1] = new LegoTagEventArgs((Pad)pad, present, uuid, null);
-                                // Ask for more wuth the read command for 0x24
-                                var msgToSend = new Message(MessageCommand.Read);
-                                msgToSend.AddPayload(pad, 0x24);
-                                _tagMessageId[pad - 1] = SendMessage(msgToSend);
+                                if (legoTag == null)
+                                {
+                                    legoTag = new PadTag() { Pad = (Pad)pad, TagIndex = padIndex, Present = present, CardUid = uuid };
+                                    _padTag.Add(legoTag);
+
+                                    // Ask for more wuth the read command for 0x24
+                                    var msgToSend = new Message(MessageCommand.Read);
+                                    msgToSend.AddPayload(padIndex, (byte)0x24);
+                                    legoTag.LastMessageId = SendMessage(msgToSend);
+                                }
+                                else
+                                {
+                                    legoTag.Present = present;
+                                }
                             }
                             else
                             {
-                                _legoTag[pad - 1].Present = present;
-                                LegoTagEvent?.Invoke(this, new LegoTagEventArgs(_legoTag[pad - 1]));
+                                if (legoTag != null)
+                                {
+                                    legoTag.Present = present;
+                                    LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
+                                    _padTag.Remove(legoTag);
+                                }
                             }
                         }
                         else if (message.MessageType == MessageType.Normal)
                         {
-                            if (message.MessageCommand == MessageCommand.Read)
+                            // In case the paylod is 17, then we do have a response to a read command
+                            if (message.MessageCommand == MessageCommand.None && message.Payload.Length == 17)
                             {
-                                // We should check the message ID to find the tag
-                                int pad = FindPadFromMdssageId(message.MessageId);
-
-                                if (pad == -1)
+                                var legoTag = _padTag.FirstOrDefault(m => m.LastMessageId == message.MessageId);
+                                if (legoTag == null)
                                 {
                                     continue;
                                 }
 
                                 // We should have our 0x24
-                                if (LegoTag.IsVehicle(message.Payload.AsSpan(8, 4).ToArray()))
+                                if (LegoTag.IsVehicle(message.Payload.AsSpan(9, 4).ToArray()))
                                 {
-                                    var vecId = LegoTag.GetVehiculeId(message.Payload.AsSpan(0, 4).ToArray());
+                                    var vecId = LegoTag.GetVehiculeId(message.Payload.AsSpan(1, 4).ToArray());
                                     var vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == vecId);
-                                    _legoTag[pad].LegoTag = vec;
-                                    LegoTagEvent?.Invoke(this, new LegoTagEventArgs(_legoTag[pad]));
+                                    legoTag.LegoTag = vec;
+
                                 }
                                 else
                                 {
-                                    // Ask for more
-                                    var msgToSend = new Message(MessageCommand.Model);
-                                    msgToSend.AddPayload(_legoTag[pad].Pad, _legoTag[pad].CardUid);
-                                    _tagMessageId[pad] = SendMessage(msgToSend);
-                                }
-                            }
-                            else if (message.MessageCommand == MessageCommand.Model)
-                            {
-                                // We should check the message ID to find the tag
-                                int pad = FindPadFromMdssageId(message.MessageId);
-
-                                if (pad == -1)
-                                {
-                                    continue;
+                                    var carId = LegoTag.GetCharacterId(legoTag.CardUid, message.Payload.AsSpan(1, 8).ToArray());
+                                    var car = Character.Characters.FirstOrDefault(m => m.Id == carId);
+                                    legoTag.LegoTag = car;
                                 }
 
-                                var carId = LegoTag.GetCharacterId(_legoTag[pad].CardUid, message.Payload);
-                                var car = Character.Characters.FirstOrDefault(m => m.Id == carId);
-                                _legoTag[pad].LegoTag = car;
-                                LegoTagEvent?.Invoke(this, new LegoTagEventArgs(_legoTag[pad]));
+                                LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
                             }
                         }
                     }
@@ -296,25 +292,10 @@ namespace LegoDimensions
             }
         }
 
-        private int FindPadFromMdssageId(byte messageId)
-        {
-            // We should check the message ID to find the tag
-            int pad = -1;
-            for (int i = 0; i < 3; i++)
-            {
-                if (_tagMessageId[i] == messageId)
-                {
-                    pad = i;
-                    break;
-                }
-            }
-
-            return pad;
-        }
-
-        private void IncreaseMessageId()
+        private byte IncreaseMessageId()
         {
             _messageId = (byte)(_messageId == 255 ? 1 : ++_messageId);
+            return _messageId;
         }
 
         public void Dispose()

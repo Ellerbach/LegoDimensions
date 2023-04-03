@@ -72,7 +72,7 @@ try
         var auth = ultralight.RunUltralightCommand();
 
         // For debug pu^rposes, you can display all page card
-        ////ReadAllCar(ultralight);
+        ReadAllCar(ultralight);
 
         // read page 0x24   
         ultralight.BlockNumber = 0x24;

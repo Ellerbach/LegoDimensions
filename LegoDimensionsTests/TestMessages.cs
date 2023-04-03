@@ -34,5 +34,31 @@ namespace LegoDimensionsTests
             Assert.Equal(MessageCommand.Wake, message.MessageCommand);
             Assert.Equal("(c) LEGO 2014", str);
         }
+
+        [Fact]
+        public void TestReceived()
+        {
+            // Arrange
+            // Act
+            var message = Message.CreateFromBuffer(new byte[] { 0x55, 0x01, 0x03, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+
+            // This is just a confirmation of message received
+            // Assert
+            Assert.Equal(MessageType.Normal, message.MessageType);
+            Assert.Equal(MessageCommand.None, message.MessageCommand);
+        }
+        [Fact]
+        public void TestReceivedInput()
+        {
+            // Arrange
+            // Act
+            var message = Message.CreateFromBufferIncoming(new byte[] { 0x55, 0x12, 0x03, 0x00, 0xBC, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+
+            // This is just a confirmation of message received
+            // Assert
+            Assert.Equal(MessageType.Normal, message.MessageType);
+            Assert.Equal(MessageCommand.None, message.MessageCommand);
+            Assert.Equal(17, message.Payload.Length);
+        }
     }
 }

@@ -6,11 +6,11 @@ namespace LegoDimensions
     public class LegoTagEventArgs : EventArgs
     {
         
-        public LegoTagEventArgs(LegoTagEventArgs e)
+        internal LegoTagEventArgs(PadTag e)
         {
             // To make a copy of the event args
             CardUid = new byte[e.CardUid.Length];
-            CardUid.CopyTo(e.CardUid, 0);
+            e.CardUid.CopyTo(CardUid, 0);
             Pad = e.Pad;
             Present = e.Present;
             LegoTag = e.LegoTag;
