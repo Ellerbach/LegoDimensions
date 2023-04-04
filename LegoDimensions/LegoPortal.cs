@@ -4,7 +4,6 @@
 using LibUsbDotNet;
 using LibUsbDotNet.LibUsb;
 using LibUsbDotNet.Main;
-using System.ComponentModel.Design;
 using System.Diagnostics;
 
 namespace LegoDimensions
@@ -18,6 +17,7 @@ namespace LegoDimensions
         private const int ProductId = 0x0241;
         private const int VendorId = 0x0E6F;
         private const int ReadWriteTimeout = 1000;
+        private const int ReceiveTimeout = 2000;
 
         // Class variables
         private IUsbDevice _portal;
@@ -26,10 +26,8 @@ namespace LegoDimensions
         private byte _messageId;
         private Thread _readThread;
         private CancellationTokenSource _cancelThread;
-        private ManualResetEvent _getColor;
-        private ManualResetEvent _getTagList;
-        private Color _padColor;
         private List<PresentTag> _presentTags = new List<PresentTag>();
+        private bool _nfcEnabled = true;
 
         // We do have only 3 Pads
         // This one is to store the last message ID request for details
@@ -79,6 +77,21 @@ namespace LegoDimensions
         /// Gets the list of present tags.
         /// </summary>
         public IEnumerable<PresentTag> PresentTags => _presentTags;
+
+        /// <summary>
+        /// Gets or sets the NFC reader enablement.
+        /// </summary>
+        public bool NfcEnabled
+        {
+            get => _nfcEnabled;
+            set
+            {
+                _nfcEnabled = value;
+                var message = new Message(MessageCommand.ConfigActive);
+                message.AddPayload(_nfcEnabled);
+                SendMessage(message);
+            }
+        }
 
         /// <summary>
         /// Creates a new instance of a Lego Dimensions Portal.
@@ -145,17 +158,22 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.GetColor);
             message.AddPayload(pad);
-            _getColor = new ManualResetEvent(false);
-            _commandId.Add(new CommandId(SendMessage(message), MessageCommand.GetColor));
+            var getColor = new ManualResetEvent(false);
+            var commandId = new CommandId(SendMessage(message), MessageCommand.GetColor, getColor);
+            _commandId.Add(commandId);
             // In case we won't get any color, use the default black one
-            _padColor = Color.Black;
+            Color padColor = Color.Black;
             // Wait maximum 2 seconds
-            while (!_getColor.WaitOne(2000))
+            getColor.WaitOne(ReceiveTimeout, true);
+
+            if (commandId.Result != null)
             {
-                // Wait for the color to be received
+                padColor = (Color)commandId.Result;
             }
 
-            return _padColor;
+            _commandId.Remove(commandId);
+
+            return padColor;
         }
 
         /// <summary>
@@ -164,7 +182,7 @@ namespace LegoDimensions
         /// <param name="padCenter">The center Pad's color.</param>
         /// <param name="padLeft">The left Pad's color.</param>
         /// <param name="padRight">The right Pad's color.</param>
-        public void SetColorAllPads(Color padCenter, Color padLeft, Color padRight)
+        public void SetColorAll(Color padCenter, Color padLeft, Color padRight)
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(true, padCenter, true, padLeft, true, padRight);
@@ -173,7 +191,7 @@ namespace LegoDimensions
         /// <summary>
         /// Switches off colors on all the pad at the same time immediatly.
         /// </summary>
-        public void SwithOffAllPads()
+        public void SwithOffAll()
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(false, Color.Black, false, Color.Black, false, Color.Black);
@@ -246,17 +264,154 @@ namespace LegoDimensions
             SendMessage(message);
         }
 
+        /// <summary>
+        /// Read 16 bytes from a tag.
+        /// </summary>
+        /// <param name="index">The tag index to read.</param>
+        /// <param name="page">The page to read.</param>
+        /// <returns>A byte array of 16 bytes in case of success.</returns>
+        public byte[] ReadTag(byte index, byte page)
+        {
+            Message message = new Message(MessageCommand.Read);
+            message.AddPayload(index, page);
+            var getRead = new ManualResetEvent(false);
+            var commandId = new CommandId(SendMessage(message), MessageCommand.Read, getRead);
+            _commandId.Add(commandId);
+            // In case we won't get any color, use the default black one
+            byte[] readBytes = new byte[0];
+            // Wait maximum 2 seconds
+            getRead.WaitOne(ReceiveTimeout, true);
+
+            if (commandId.Result != null)
+            {
+                readBytes = (byte[])commandId.Result;
+            }
+
+            _commandId.Remove(commandId);
+
+            return readBytes;
+        }
+
+        /// <summary>
+        /// Write 4 bytes to a tag.
+        /// </summary>
+        /// <param name="index">The tag index to write.</param>
+        /// <param name="page">The page to write.</param>
+        /// <param name="bytes">An array of 4 bytes to write.</param>
+        /// <returns>True if success.</returns>
+        public bool WriteTag(byte index, byte page, byte[] bytes)
+        {
+            if(bytes.Length != 4)
+            {
+                throw new ArgumentException("Write to card must be 4 bytes.");
+            }
+
+            Message message = new Message(MessageCommand.Write);
+            message.AddPayload(index, page, bytes);
+            var getWrite = new ManualResetEvent(false);
+            var commandId = new CommandId(SendMessage(message), MessageCommand.Write, getWrite);
+            _commandId.Add(commandId);
+            // In case we won't get any color, use the default black one
+            bool success = false;
+            // Wait maximum 2 seconds
+            getWrite.WaitOne(ReceiveTimeout, true);
+
+            if (commandId.Result != null)
+            {
+                success = (bool)commandId.Result;
+            }
+
+            _commandId.Remove(commandId);
+
+            return success;
+        }
+
+        /// <summary>
+        /// Read 8 bytes from a tag at page 0x24 and 0x25.
+        /// </summary>
+        /// <param name="encryoptedIndex">The tag index to read encrypted on 8 bytes.</param>
+        /// <returns>A byte array of 8 bytes in case of success.</returns>
+        public byte[] GetTagInformation(byte[] encryoptedIndex)
+        {
+            Message message = new Message(MessageCommand.Model);
+            message.AddPayload(encryoptedIndex);
+            var getRead = new ManualResetEvent(false);
+            var commandId = new CommandId(SendMessage(message), MessageCommand.Model, getRead);
+            _commandId.Add(commandId);
+            // In case we won't get any color, use the default black one
+            byte[] readBytes = new byte[0];
+            // Wait maximum 2 seconds
+            getRead.WaitOne(ReceiveTimeout, true);
+
+            if (commandId.Result != null)
+            {
+                readBytes = (byte[])commandId.Result;
+            }
+
+            _commandId.Remove(commandId);
+
+            return readBytes;
+        }
+
+        /// <summary>
+        /// Get a challenge from the portal.
+        /// </summary>
+        /// <returns>A byte array of 8 bytes in case of success.</returns>
+        public byte[] GetChallenge()
+        {
+            Message message = new Message(MessageCommand.Challenge);
+            var getChallenge = new ManualResetEvent(false);
+            var commandId = new CommandId(SendMessage(message), MessageCommand.Challenge, getChallenge);
+            _commandId.Add(commandId);
+            // In case we won't get any color, use the default black one
+            byte[] readBytes = new byte[0];
+            // Wait maximum 2 seconds
+            getChallenge.WaitOne(ReceiveTimeout, true);
+            
+            if (commandId.Result != null)
+            {
+                readBytes = (byte[])commandId.Result;
+            }
+
+            _commandId.Remove(commandId);
+
+            return readBytes;
+        }
+
         public IEnumerable<PresentTag> ListTags()
         {
             Message message = new Message(MessageCommand.TagList);
-            _getTagList = new ManualResetEvent(false);
-            _commandId.Add(new CommandId(SendMessage(message), MessageCommand.TagList));
-            while (!_getTagList.WaitOne(2000))
-            {
-                // Wait for the taglist to be received
-            }
+            var getTagList = new ManualResetEvent(false);
+            var commandId = new CommandId(SendMessage(message), MessageCommand.TagList, getTagList);
+            _commandId.Add(commandId);
+            while (!getTagList.WaitOne(ReceiveTimeout))
+            { }
+
+            // We don't do anything as we manage the result globally
+            _commandId.Remove(commandId);
 
             return _presentTags;
+        }
+
+        /// <summary>
+        /// Sets the tag password behavior.
+        /// </summary>
+        /// <param name="password">The desired state, Automatic is the default value.</param>
+        /// <param name="index">The tag index.</param>
+        /// <param name="newPassword">The new 4 bytes password if any.</param>
+        public void SetTagPassword(PortalPassword password, byte index, byte[] newPassword = null)
+        {
+            if (password == PortalPassword.Custom)
+            {
+                if (newPassword != null && newPassword.Length != 4)
+                {
+                    throw new ArgumentException("New password must be 4 bytes");
+                }
+            }
+
+            Message message = new Message(MessageCommand.ConfigPassword);
+            message.AddPayload((byte)password, index, newPassword == null ? new byte[4] : newPassword);
+            SendMessage(message);
         }
 
         /// <summary>
@@ -323,7 +478,7 @@ namespace LegoDimensions
                                     var msgToSend = new Message(MessageCommand.Read);
                                     msgToSend.AddPayload(padIndex, (byte)0x24);
                                     legoTag.LastMessageId = SendMessage(msgToSend);
-                                    _commandId.Add(new CommandId(legoTag.LastMessageId, MessageCommand.Read));
+                                    _commandId.Add(new CommandId(legoTag.LastMessageId, MessageCommand.Read, null));
                                 }
                                 else
                                 {
@@ -352,39 +507,71 @@ namespace LegoDimensions
                             var cmdId = _commandId.Where(m => m.MessageId == _messageId).FirstOrDefault();
                             if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Read)
                             {
-                                _commandId.Remove(cmdId);
-                                var legoTag = _padTag.FirstOrDefault(m => m.LastMessageId == message.MessageId);
-                                if (legoTag == null)
+                                // In this case the request is coming from the event
+                                if (cmdId.ManualResetEvent == null)
                                 {
-                                    continue;
-                                }
+                                    var legoTag = _padTag.FirstOrDefault(m => m.LastMessageId == message.MessageId);
+                                    if (legoTag == null)
+                                    {
+                                        continue;
+                                    }
 
-                                // We should have our 0x24
-                                if (LegoTag.IsVehicle(message.Payload.AsSpan(9, 4).ToArray()))
-                                {
-                                    var vecId = LegoTag.GetVehiculeId(message.Payload.AsSpan(1, 4).ToArray());
-                                    var vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == vecId);
-                                    legoTag.LegoTag = vec;
+                                    // We should have our 0x24
+                                    if (LegoTag.IsVehicle(message.Payload.AsSpan(9, 4).ToArray()))
+                                    {
+                                        var vecId = LegoTag.GetVehiculeId(message.Payload.AsSpan(1, 4).ToArray());
+                                        var vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == vecId);
+                                        legoTag.LegoTag = vec;
 
+                                    }
+                                    else
+                                    {
+                                        var carId = LegoTag.GetCharacterId(legoTag.CardUid, message.Payload.AsSpan(1, 8).ToArray());
+                                        var car = Character.Characters.FirstOrDefault(m => m.Id == carId);
+                                        legoTag.LegoTag = car;
+                                    }
+
+                                    LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
                                 }
                                 else
                                 {
-                                    var carId = LegoTag.GetCharacterId(legoTag.CardUid, message.Payload.AsSpan(1, 8).ToArray());
-                                    var car = Character.Characters.FirstOrDefault(m => m.Id == carId);
-                                    legoTag.LegoTag = car;
+                                    // This case is a normal read and we will set the buffer
+                                    if (message.Payload[0] == 0)
+                                    {
+                                        // if no error, we set the result
+                                        cmdId.Result = message.Payload[1..];
+                                    }
+
+                                    cmdId.ManualResetEvent.Set();
+                                }
+                            }
+                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.GetColor)
+                            {
+                                cmdId.Result = Color.FromArgb(message.Payload[0], message.Payload[1], message.Payload[2]);
+                                cmdId.ManualResetEvent?.Set();
+                            }
+                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Model)
+                            {
+                                if (message.Payload[0] == 0)
+                                {
+                                    // if no error, we set the result
+                                    cmdId.Result = message.Payload[1..];
                                 }
 
-                                LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
+                                cmdId.ManualResetEvent?.Set();
                             }
-                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Color)
+                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Write)
                             {
-                                _commandId.Remove(cmdId);
-                                _padColor = Color.FromArgb(message.Payload[0], message.Payload[1], message.Payload[2]);
-                                _getColor.Set();
+                                cmdId.Result = message.Payload[0] == 0;
+                                cmdId.ManualResetEvent?.Set();
+                            }
+                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Challenge)
+                            {
+                                cmdId.Result = message.Payload;
+                                cmdId.ManualResetEvent?.Set();
                             }
                             else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.TagList)
                             {
-                                _commandId.Remove(cmdId);
                                 _presentTags.Clear();
                                 for (int i = 0; i < message.Payload.Length / 2; i++)
                                 {
@@ -392,15 +579,14 @@ namespace LegoDimensions
                                     _presentTags.Add(presentTag);
                                 }
 
-                                _getTagList.Set();
+                                cmdId.ManualResetEvent?.Set();
                             }
-
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // We just don't do anything
+                    Debug.WriteLine($"Excption: {ex}");
                 }
             }
         }

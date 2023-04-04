@@ -21,6 +21,9 @@ namespace LegoDimensions
         /// <summary>Challenge.</summary>
         Challenge = 0xB3,
 
+        /// <summary>Unknown command.</summary>
+        Unkonwn0xB4 = 0xB4,
+
         // C = colors
         /// <summary>Change color immediatly.</summary>
         Color = 0xC0,
@@ -63,13 +66,10 @@ namespace LegoDimensions
         Model = 0xD4,
 
         // E = configuration
-        /// <summary></summary>
+        /// <summary>Set password behavior.</summary>
         ConfigPassword = 0xE1,
 
-        /// <summary></summary>
+        /// <summary>Active or deactivate the NFC module.</summary>
         ConfigActive = 0xE5,
-
-        /// <summary></summary>
-        LEDSQ = 0xFF,
     }
 }

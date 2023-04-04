@@ -4,6 +4,8 @@ This document aims to explain in details the communication protocol between the 
 
 The portal or Lego Dimensions Starter Kit that are supported are the non XBox ones. The Xbox are currently not documented.
 
+The vendor ID `0x0E6F` is and the product ID `0x0241`. Any other like the Xbox one (0x0141) won't work with this protocol.
+
 ## Generalities
 
 All messages sent and receive are always 32 bytes. They are always padded with 0 to complete the side.
@@ -154,9 +156,9 @@ The response will be:
 
 In this case, the command follow the following description:
 
-| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10 |b11 |b12 |b13 |b14 |b15|b16 |b17 -> b31 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|0x55 | length (0x0E) | command (0xC8)| center on/off | center red | center green | center blue | left on/off | left red | left green | left blue | right on/off | right red | right green | right blue |checksum| 0 |
+| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10 |b11 |b12 |b13 |b14 |b15|b16|b17 |b18 -> b31 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x0E) | command (0xC8)|message ID| center on/off | center red | center green | center blue | left on/off | left red | left green | left blue | right on/off | right red | right green | right blue |checksum| 0 |
 
 Note: 0 for off, 1 for on
 
@@ -169,9 +171,9 @@ Note: 0 for off, 1 for on
 
 This command will flash an individual tag for a certain amount of time and at a certain speed with a specific color:
 
-| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10|b11 |b12 -> b31 |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-|0x55 | length (0x09) | command (0xC3)| Pad (1, 2 or 3) | tick on | tick off | tick count (0xFF forever) | red | green | blue | checksum| 0 |
+| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10|b11|b12 |b13 -> b31 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x09) | command (0xC3)|message ID| Pad (1, 2 or 3) | tick on | tick off | tick count (0xFF forever) | red | green | blue | checksum| 0 |
 
 Note:
 
@@ -186,9 +188,9 @@ Note:
 
 This command is similar to the individual pad flashing except that it will have this effect on all pads at the same time. Each pad can have different settings.
 
-| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10| b11| b12 | b13 | b14 |b15 |b16| b17| b18 | b19 | b20 |b21 |b22| b22 |b23|b24|b25 -> b31 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|0x55 | length (0x17) | command (0xC7)| Center on/off | tick on | tick off | tick count | red | green | blue | Left on/off | tick on | tick off | tick count | red | green | blue | Right on/off | tick on | tick off | tick count | red | green | blue | checksum| 0 |
+| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10| b11| b12 | b13 | b14 |b15 |b16| b17| b18 | b19 | b20 |b21 |b22| b22 |b23|b24|b25|b26 -> b31 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x17) | command (0xC7)|message ID| Center on/off | tick on | tick off | tick count | red | green | blue | Left on/off | tick on | tick off | tick count | red | green | blue | Right on/off | tick on | tick off | tick count | red | green | blue | checksum| 0 |
 
 Notes:
 
@@ -207,9 +209,9 @@ Notes:
 
 This command fade a pad. It will take the current color as the original color.
 
-| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9|b10 |b11 -> b31 |
-|---|---|---|---|---|---|---|---|---|---|---|
-|0x55 | length (0x08) | command (0xC3)| Pad (1, 2 or 3) | tick time | tick count (0 never) | red | green | blue | checksum| 0 |
+| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9|b10 |b11|b12 -> b31 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x08) | command (0xC3)|message ID| Pad (1, 2 or 3) | tick time | tick count (0 never) | red | green | blue | checksum| 0 |
 
 Notes:
 
@@ -225,9 +227,9 @@ Notes:
 
 Similar to the individual pad fading, this command will fade all the pads at the same time. Each one can have a different setting and different color.
 
-| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10| b11| b12 | b13 | b14 |b15 |b16| b17| b18 | b19 | b20 |b21 |b22|b23 -> b31 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|0x55 | length (0x14) | command (0xC6)| Center on/off | tick time | tick count | red | green | blue | Left on/off | tick time | tick count | red | green | blue | Right on/off | tick time | tick count | red | green | blue | checksum| 0 |
+| b0 | b1 | b2 | b3| b4| b6 | b7 | b8 |b9 |b10| b11| b12 | b13 | b14 |b15 |b16| b17| b18 | b19 | b20 |b21 |b22|b23|b24 -> b31 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x14) | command (0xC6)|message ID| Center on/off | tick time | tick count | red | green | blue | Left on/off | tick time | tick count | red | green | blue | Right on/off | tick time | tick count | red | green | blue | checksum| 0 |
 
 Notes:
 
@@ -246,9 +248,9 @@ Notes:
 
 This command will fade one or all pads to a random color but with a specific behavior.
 
-| b0 | b1 | b2 | b3| b4| b6 | b7 | b7 -> b31 |
-|---|---|---|---|---|---|---|---|
-|0x55 | length (0x05) | command (0xC4)| Pad (1, 2 or 3) | tick time | tick count (0 never) | checksum| 0 |
+| b0 | b1 | b2 | b3| b4| b6 | b7 | b8| b9 -> b31 |
+|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x05) | command (0xC4)|message ID| Pad (1, 2 or 3) | tick time | tick count (0 never) | checksum| 0 |
 
 Notes:
 
@@ -274,9 +276,9 @@ This opens opportunities to use the portal for other behaviors and totally outsi
 
 This command will list all the tags present on the pads. The command to send is like this:
 
-| b0 | b1 | b2 | b3| b4| b5 -> b31 |
-|---|---|---|---|---|---|
-|0x55 | length (0x04) | command (0xD2)| tag index | page number | checksum| 0 |
+| b0 | b1 | b2 | b3| b4|b5|b6| b7 -> b31 |
+|---|---|---|---|---|---|---|---|
+|0x55 | length (0x04) | command (0xD2)|message ID| tag index | page number | checksum| 0 |
 
 ```text
 // Reads tag index 2 and page 0x24
@@ -290,9 +292,9 @@ Note:
 
 You will get as a return:
 
-| b0 | b1 | b2 | b3| b4-> b19| b20 -> b31 |
-|---|---|---|---|---|---|
-|0x55 | length (0x12) | message ID | unknown | 16 bytes data | checksum| 0 |
+| b0 | b1 | b2 | b3| b4-> b19|b20| b21 -> b31 |
+|---|---|---|---|---|---|---|
+|0x55 | length (0x12) | message ID | error (0 if none) | 16 bytes data | checksum| 0 |
 
 As an example, see the following lines:
 
@@ -417,7 +419,7 @@ The NDEF usage is still unknown. The values would be:
 
 All the vehicles and characters from the initial series, all finish with 15. S is always placed at the sample place.
 
-The Mission Impossible series has a different ending, the vehicles would be 9813202S1716 and 9812995S1716 for Ethan. Ending may be related to the world the chapters (Vorlon would be 15, MI 16) they are part of.
+The Mission Impossible series has a different ending, the vehicles would be 9813202S1716 and 9812995S1716 for Ethan. Ending may be related to the world the chapters (Vorlon would be 15, Mission Impossible 16) they are part of.
 
 You can note as well that the protection for the different elements is different. To read and to write the tag, you will need a password. We will cover this in a further section.
 
@@ -461,7 +463,143 @@ It is possible to format the card using the keys and possible as well to write n
 
 ### List tags 0xD0
 
+This command will list the tags present on the portal. Each tag will have 3 different information:
 
-| b0 | b1 | b2 | b3| b4| b6 | b7 | b7 -> b31 |
+* it's pad (1 center, 2 left, 3 right)
+* it's index (from 0 to 6)
+* if the tag is normal or not initialized/with error
+
+You will have to send this simple command
+
+| b0 | b1 | b2 | b3| b4| b5 -> b31 |
+|---|---|---|---|---|---|
+|0x55 | length (0x05) | command (0xD0)| message ID |checksum| 0 |
+
+And here is the command sent:
+
+```text
+55-02-D0-05-2C-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+```
+
+The answer will be like this:
+
+```text
+// Only 1 tag present on the right and no error
+55-03-05-30-00-8D-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+// All 7 tags present, no error
+55-0F-13-30-00-31-00-32-00-23-00-14-00-25-00-26-00-8C-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+// All 7 tags present, first tag with error
+55-0F-2C-30-08-31-00-32-00-23-00-14-00-25-00-26-00-AD-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+```
+
+The response will be like:
+
+| b0 | b1 | b2 | b3| b4| bn->bm | bm+1 | bm+2 -> b31 |
 |---|---|---|---|---|---|---|---|
-|0x55 | length (0x05) | command (0xD0)| checksum| 0 |
+|0x55 | length (0x05) | message Id| Pad num (4 bits) and index (4 bits) | Tag type | Repeat up to 6 times |checksum| 0 |
+
+Notes:
+
+* You will get a maximum of 7 tags on the pad
+* The pad number (1, 2 or 3) is encoded on the 4 high bits
+* The index (0 to 6) is encoded on the 4 low bits
+* The tag type is either normal (0) either with error or uninitialized (0x08) values
+
+### Writing a tag 0xD3
+
+This command will write information on a tag on 4 pages.
+
+| b0 | b1 | b2 | b3| b4|b5|b6 -> b9|b10| b11 -> b31 |
+|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x09) | command (0xD2)|message ID| tag index | page number | 4 bytes buffer | checksum| 0 |
+
+As an answer, you will get a confirmation if no error.
+
+| b0 | b1 | b2 | b3| b24 -> b31 |
+|---|---|---|---|---|
+|0x55 | length (0x3) | message ID | error (0 if none) | checksum| 0 |
+
+## Configuration
+
+The portal needs to be awake first, there is a magic command to send for this. You can as well disable or enable the NFC readers and adjust the password behavior.
+
+### Waking up the portal 0xB0
+
+This is the first thing to do to make sure you are up and running.
+
+| b0 | b1 | b2 | b3| b4|b5| b10 -> b31 |
+|---|---|---|---|---|---|---|
+|0x55 | length (0x0F) | command (0xB0)|message ID| (c) LEGO 2014 | checksum| 0 |
+
+```text
+// Message sent
+55-0F-B0-01-28-63-29-20-4C-45-47-4F-20-32-30-31-34-F7-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+// Answer from the portal
+55-19-01-00-2F-02-01-02-02-04-02-F5-00-19-81-54-D3-A3-44-AE-A5-88-E8-0B-02-60-12-8A-00-00-00-00
+```
+
+The answer from the portal contains configuration information and most likely serial numbers.
+
+### Seeding command 0xB1
+
+TODO
+
+### Challenge command 0xB3
+
+You can ask for a challenge number to seed.
+
+| b0 | b1 | b2 | b3| b4| b5 | b6| b7 | b8 -> b31 |
+|---|---|---|---|---|---|---|---|---|
+|0x55 | length (0x02) | command (0xB3)| message ID |checksum| 0 |
+
+```text
+// Challenge command sent
+55-02-B3-03-0D-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+// Response
+55-09-03-55-0E-B8-F6-64-71-FC-5D-A0-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+```
+
+Answer will be like this:
+
+| b0 | b1 | b2 | b3-> b10|b11 | b12 -> b31 |
+|---|---|---|---|---|---|
+|0x55 | length (0x09) | message ID | 8 bytes data | checksum| 0 |
+
+Each time you'll ask for a challenge, you'll get a different one.
+
+### NFC password behavior 0xE1
+
+The default password behavior to access the card is automatic.
+
+The command look like this:
+
+| b0 | b1 | b2 | b3| b4|b5 -> b8| b9 | b10 -> b31 |
+|---|---|---|---|---|---|---|---|
+|0x55 | length (0x05) | command (0xE1)| index |password mode| 4 bytes custom password |checksum| 0 |
+
+The index behavior is not really known. Disabling the password always seems to work but re-enabling it returns errors except for some values of index.
+
+3 modes exist:
+
+* No password
+* Automatic (default)
+* Custom password
+
+```text
+// Disable password on first index
+55-08-E1-03-00-00-00-00-00-00-41-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+// Confirmation without error received
+55-04-03-00-AA-55-5B-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00
+```
+
+When you unplug and plug the portal, the automatic mode is setup again.
+
+### NFC reader enable command 0xE5
+
+It's possible to deactivate the nfc reader. Default behavior is activated.
+
+| b0 | b1 | b2 | b3| b4| b5 | b6 -> b31 |
+|---|---|---|---|---|---|---|
+|0x55 | length (0x03) | command (0xE5)| message ID | activation |checksum| 0 |
+
+Note: activation = 0 will disable the NFR readers, 1 will enable it.
