@@ -1,0 +1,5 @@
+# LEGO Dimensions Toy Pad
+# Install this file into /etc/udev/rules.d/
+#
+# - Give write access to all users so no need of sudo
+SUBSYSTEM=="usb", ATTR{idVendor}=="0e6f", ATTR{idProduct}=="0241", MODE="0666"

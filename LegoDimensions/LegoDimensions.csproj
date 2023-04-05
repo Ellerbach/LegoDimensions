@@ -14,10 +14,11 @@
     <PackageProjectUrl>https://github.com/Ellerbach/LegoDimensions</PackageProjectUrl>
     <Description>Package allows to use Lego Dimensions pad and tags from a PC on Windows or Linux.</Description>
     <PackageTags>lego dimensions nfc rfid tag pad</PackageTags>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\README.md" Pack="true" PackagePath=""/>
+    <None Include="..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <ItemGroup>

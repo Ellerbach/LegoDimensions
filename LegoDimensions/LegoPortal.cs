@@ -5,6 +5,7 @@ using LibUsbDotNet;
 using LibUsbDotNet.LibUsb;
 using LibUsbDotNet.Main;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace LegoDimensions
 {
@@ -102,6 +103,12 @@ namespace LegoDimensions
             _portal = device;
             //Open the device
             _portal.Open();
+
+            // Non Windows OS need to detach the kernel driver
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Imports.SetAutoDetachKernelDriver(_portal.DeviceHandle, 1);
+            }
 
             //Get the first config number of the interface
             _portal.ClaimInterface(_portal.Configs[0].Interfaces[0].Number);

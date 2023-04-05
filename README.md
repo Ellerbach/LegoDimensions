@@ -25,7 +25,9 @@ For Windows users (7 and more)
 
 For Linux users
 
-* Install libusb and libusb1 if not already installed
+* Install libusb and libusb1 if not already installed like `sudo apt-get libusb-dev` on a Rapsberry Pi
+* Copy the [99-lego-dimensions.rules](./linux-driver-rules/99-lego-dimensions.rules) file into `/etc/udev/rules.d/`. This will allow you to run the code from any user.
+* Reboot then device or apply the changes
 
 ### Portal instantiation and basic usage
 
