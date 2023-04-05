@@ -1,10 +1,24 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Authors>Laurent Ellerbach and contributors</Authors>
+    <Copyright>Laurent Ellerbach</Copyright>
+    <Product>LegoDimensions</Product>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Ellerbach/LegoDimensions</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Ellerbach/LegoDimensions</PackageProjectUrl>
+    <Description>Package allows to use Lego Dimensions pad and tags from a PC on Windows or Linux.</Description>
+    <PackageTags>lego dimensions nfc rfid tag pad</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath=""/>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="LibUsbDotNet" Version="3.0.102-alpha" />

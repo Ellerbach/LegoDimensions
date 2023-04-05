@@ -156,7 +156,7 @@ void TestReadTag()
         var tag = portal.ReadTag(idx, i);
         if (tag.Length == 0)
         {
-            Console.WriteLine($"Error reading card page 0x{i:X2}")
+            Console.WriteLine($"Error reading card page 0x{i:X2}");
         }
         else
         {
