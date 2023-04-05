@@ -2,7 +2,7 @@
 
 The aim of this work is to be able to use Lego Dimensions portal and tags outside of their original purpose. Idea is to automate the usage or the portal led, but as well be able to read tags, with or without the portal to automate other external elements from a simple Raspberry PI for example.
 
-You will find a detailed documentation of the Lego Dimensions protocol [here](./LegoDimensionsProtocol.md). I built this documentation as I did not find anything that detailed.
+You will find a detailed documentation of the Lego Dimensions protocol [here](https://github.com/Ellerbach/LegoDimensions/blob/main/LegoDimensionsProtocol.md). I built this documentation as I did not find anything that detailed.
 
 ## Lego Dimensions portal
 
@@ -26,7 +26,7 @@ For Windows users (7 and more)
 For Linux users
 
 * Install libusb and libusb1 if not already installed like `sudo apt-get libusb-dev` on a Rapsberry Pi
-* Copy the [99-lego-dimensions.rules](./linux-driver-rules/99-lego-dimensions.rules) file into `/etc/udev/rules.d/`. This will allow you to run the code from any user.
+* Copy the [99-lego-dimensions.rules](https://github.com/Ellerbach/LegoDimensions/blob/main/linux-driver-rules/99-lego-dimensions.rules) file into `/etc/udev/rules.d/`. This will allow you to run the code from any user.
 * Reboot then device or apply the changes
 
 ### Portal instantiation and basic usage
@@ -223,7 +223,7 @@ You should keep track of the tags with their UID. But a list of available tab wi
 
 ## Lego Tags
 
-The [Lego Dimensions library](LegoDimensions) contains the full support to handle the Lego Tags. A full solution detecting the tags, reading them and displaying the characters and vehicles is available in the [Lego Dimensions Read NFC project](LegoDimensionsReadNfc).
+The [Lego Dimensions library](https://github.com/Ellerbach/LegoDimensions/tree/main/LegoDimensions) contains the full support to handle the Lego Tags. A full solution detecting the tags, reading them and displaying the characters and vehicles is available in the [Lego Dimensions Read NFC project](https://github.com/Ellerbach/LegoDimensions/tree/main/LegoDimensionsReadNfc).
 
 The Read NFC project is currently using a [PN532](https://github.com/dotnet/iot/tree/main/src/devices/Pn532) connected in serial to read the tags. It's based on the [.NET IoT](https://github.com/dotnet/iot) implementation for both the reader and the Ultralight tags.
 
@@ -320,7 +320,7 @@ vehicle ID: 11 The Annihilator - The Lego Movie
 
 The regular Lego Tag are protected and except the vehicle tag that can be written at any time, you can't change the character ID of a normal Lego tag. But you can write all this on a brand new tag.
 
-If your tag is fully new, then you can just write whatever you want. You have the code in the [LegoDimensionsReadNfc sample](LegoDimensionsReadNfc).
+If your tag is fully new, then you can just write whatever you want. You have the code in the [LegoDimensionsReadNfc sample](https://github.com/Ellerbach/LegoDimensions/tree/main/LegoDimensionsReadNfc).
 
 In short, the important steps are the following:
 
