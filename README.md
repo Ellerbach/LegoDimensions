@@ -268,12 +268,12 @@ if (res > 0)
 To process the data, you'll need a valid read from the previous section. It's a 16 byte buffer.
 
 ```csharp
-// If page 0x26 == 00 01 00 00 we have a vehicule
+// If page 0x26 == 00 01 00 00 we have a vehicle
 if (LegoTag.IsVehicle(ultralight.Data.AsSpan(8, 4).ToArray()))
 {
     Console.WriteLine("Found a vehicle.");
     // The 2 first one used
-    var id = LegoTag.GetVehiculeId(ultralight.Data);
+    var id = LegoTag.GetVehicleId(ultralight.Data);
     Console.Write($"vehicle ID: {id} ");
     Vehicle vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == id);
     if (vec is not null)
@@ -315,6 +315,32 @@ Character ID: 2 Gandalf - Lord of the Rings
 Found a vehicle.
 vehicle ID: 11 The Annihilator - The Lego Movie
 ```
+
+### Writing data on a new NTAG213 card
+
+The regular Lego Tag are protected and except the vehicle tag that can be written at any time, you can't change the character ID of a normal Lego tag. But you can write all this on a brand new tag.
+
+If your tag is fully new, then you can just write whatever you want. You have the code in the [LegoDimensionsReadNfc sample](LegoDimensionsReadNfc).
+
+In short, the important steps are the following:
+
+1. Detect the tag
+1. Create a new password based on the Card Unique ID (the 7 bytes) using the `LegoTag.GenerateCardPassword`
+1. Write it to the 0x2B block on the card (assuming an NTAG213, address is different for 215 and 216)
+1. If you want a vehicle:
+
+    1. Use `LegoTag.EncryptVehicleId` to get the 4 bytes
+    1. Write the 4 bytes on block 0x24
+    1. Write `{ 0x00, 0x01, 0x00, 0x00 }` on block 0x26
+
+1. If you want a character:
+
+    1. Use `LegoTag.EncrypCharactertId` to get the 8 bytes
+    1. Write the first 4 one on block 0x24
+    1. Write the next 4 one on block 0x25
+    1. If you've been using a vehicle before, write `{ 0x00, 0x00, 0x00, 0x00 }` on block 0x26
+
+And now, you're all set! No need to adjust any other password!
 
 ## Sources of inspiration and code
 

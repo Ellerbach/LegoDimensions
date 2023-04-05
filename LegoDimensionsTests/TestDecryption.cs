@@ -13,7 +13,7 @@ namespace LegoDimensionsTests
 
             // Act & Assert
             Assert.True(LegoTag.IsVehicle(data.AsSpan(8, 4).ToArray()));
-            var id = LegoTag.GetVehiculeId(data);
+            var id = LegoTag.GetVehicleId(data);
             Assert.Equal(123, id);
         }
 

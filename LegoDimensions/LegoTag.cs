@@ -51,12 +51,12 @@ namespace LegoDimensions
         }
 
         /// <summary>
-        /// Gets the vehicule ID by decrypting the data.
+        /// Gets the vehicle ID by decrypting the data.
         /// </summary>
         /// <param name="data">Page 0x24 of the NFC data.</param>
-        /// <returns>The vehicule ID.</returns>
+        /// <returns>The vehicle ID.</returns>
         /// <exception cref="ArgumentException">Data must be at least 2 bytes long</exception>
-        public static ushort GetVehiculeId(byte[] data)
+        public static ushort GetVehicleId(byte[] data)
         {
             if (data is null || data.Length < 2)
             {
@@ -70,7 +70,7 @@ namespace LegoDimensions
         /// Checks if the tag is a vehicles.
         /// </summary>
         /// <param name="data">Page 0x26 of the NFC data.</param>
-        /// <returns>True if the tag is a vehicule.</returns>
+        /// <returns>True if the tag is a vehicle.</returns>
         public static bool IsVehicle(byte[] data)
         {
             return data.SequenceEqual(new byte[] { 0x00, 0x01, 0x00, 0x00 });
@@ -148,7 +148,7 @@ namespace LegoDimensions
         /// <summary>
         /// Encrypt the vehicle ID.
         /// </summary>
-        /// <param name="vecId">The vehicule ID.</param>
+        /// <param name="vecId">The vehicle ID.</param>
         /// <returns>A 4 bytes array to be stored at page 0x24 of the NFC. Note that page 0x26 needs to be set with 0x00 0x01 0x00 0x00.</returns>
         public static byte[] EncryptVehicleId(ushort vecId)
         {

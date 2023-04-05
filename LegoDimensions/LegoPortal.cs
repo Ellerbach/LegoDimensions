@@ -526,7 +526,7 @@ namespace LegoDimensions
                                     // We should have our 0x24
                                     if (LegoTag.IsVehicle(message.Payload.AsSpan(9, 4).ToArray()))
                                     {
-                                        var vecId = LegoTag.GetVehiculeId(message.Payload.AsSpan(1, 4).ToArray());
+                                        var vecId = LegoTag.GetVehicleId(message.Payload.AsSpan(1, 4).ToArray());
                                         var vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == vecId);
                                         legoTag.LegoTag = vec;
 
