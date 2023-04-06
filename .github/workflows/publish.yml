@@ -44,7 +44,7 @@ jobs:
         dotnet-version: 6.x
     # Create a nuget Release      
     - name: Pack the NuGet package
-      run: dotnet pack ./LegoDimensions --configuration Release --output ./artifacts
+      run: dotnet pack ./LegoDimensions --configuration Release --output ../artifacts
 
     # Publish all NuGet packages to NuGet.org
     # Use --skip-duplicate to prevent errors if a package with the same version already exists.
