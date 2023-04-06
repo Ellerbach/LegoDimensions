@@ -4,9 +4,9 @@ on:
   push:
     branches: [ "main" ]
 
-publish:
-  jobs:
-    runs-on: ubuntu-latest
+jobs:
+  publish:
+      runs-on: ubuntu-latest
 
     steps:
     # Checkout sources. Depth=0 is for using GitVersion
