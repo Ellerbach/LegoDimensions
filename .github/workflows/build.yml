@@ -46,6 +46,8 @@ jobs:
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  publish:
+    # Create a nuget Release
     if: ${{ github.event.pull_request.merged }}
     - name: Pack the NuGet package
       run: dotnet pack ./LegoDimensions --no-build --configuration Release --output ./artifacts
