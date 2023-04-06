@@ -6,7 +6,7 @@ on:
 
 jobs:
   publish:
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
     steps:
     # Checkout sources. Depth=0 is for using GitVersion
