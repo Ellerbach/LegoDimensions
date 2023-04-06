@@ -95,6 +95,12 @@ namespace LegoDimensions
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether to get the tag details once a new tag is added.
+        /// </summary>
+        /// <remarks>Set this to false if you are only interested in getting the Card UID and no details.</remarks>
+        public bool GetTagDetails { get; set; } = true;
+
+        /// <summary>
         /// Creates a new instance of a Lego Dimensions Portal.
         /// </summary>
         /// <param name="device">A valid Lego Dimensions instance.</param>
@@ -481,11 +487,19 @@ namespace LegoDimensions
                                     legoTag = new PadTag() { Pad = (Pad)pad, TagIndex = padIndex, Present = present, CardUid = uuid, TagType = tadType };
                                     _padTag.Add(legoTag);
 
-                                    // Ask for more wuth the read command for 0x24
-                                    var msgToSend = new Message(MessageCommand.Read);
-                                    msgToSend.AddPayload(padIndex, (byte)0x24);
-                                    legoTag.LastMessageId = SendMessage(msgToSend);
-                                    _commandId.Add(new CommandId(legoTag.LastMessageId, MessageCommand.Read, null));
+                                    if (GetTagDetails)
+                                    {
+                                        // Ask for more wuth the read command for 0x24
+                                        var msgToSend = new Message(MessageCommand.Read);
+                                        msgToSend.AddPayload(padIndex, (byte)0x24);
+                                        legoTag.LastMessageId = SendMessage(msgToSend);
+                                        _commandId.Add(new CommandId(legoTag.LastMessageId, MessageCommand.Read, null));
+                                    }
+                                    else
+                                    {
+                                        // Directly raise the event
+                                        LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
+                                    }
                                 }
                                 else
                                 {

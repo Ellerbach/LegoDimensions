@@ -63,7 +63,7 @@ namespace LegoDimensions
                 throw new ArgumentException("Data must be at least 2 bytes long");
             }
 
-            return (ushort)((data[0] | data[1] << 8) - 1000);
+            return (ushort)(data[0] | (data[1] << 8));
         }
 
         /// <summary>
@@ -152,8 +152,7 @@ namespace LegoDimensions
         /// <returns>A 4 bytes array to be stored at page 0x24 of the NFC. Note that page 0x26 needs to be set with 0x00 0x01 0x00 0x00.</returns>
         public static byte[] EncryptVehicleId(ushort vecId)
         {
-            byte[] data = new byte[4] { 0x00, 0x00, 0x00, 0x00 };
-            vecId += 1000;
+            byte[] data = new byte[4] { 0x00, 0x00, 0x00, 0x00 };            
             data[0] = (byte)(vecId & 0xFF);
             data[1] = (byte)((vecId >> 8) & 0xFF);
 

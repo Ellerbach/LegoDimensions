@@ -6,6 +6,8 @@ using LegoDimensions;
 List<LegoTagEventArgs> tags = new List<LegoTagEventArgs>();
 
 var portal = LegoPortal.GetFirstPortal();
+// If you don't want to get the tag details on the event, you can disable it
+//portal.GetTagDetails = false;
 portal.LegoTagEvent += PortalLegoTagEvent;
 
 //TestColor0xC0();
