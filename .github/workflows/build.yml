@@ -24,6 +24,9 @@ jobs:
       with:
         versionSpec: '5.x'
     - name: Use GitVersion
+      # Step id is used as reference for the output values
+      id: gitversion 
+      uses: gittools/actions/gitversion/execute@v0.9.7
 
       # Restore, build and test the project
     - name: Restore dependencies
@@ -52,7 +55,6 @@ jobs:
     name: Create nuget Release
     conditions: ${{ github.event.pull_request.merged }}
     steps:
-    - uses: actions/checkout@v3
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
