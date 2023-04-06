@@ -14,7 +14,6 @@
     <PackageProjectUrl>https://github.com/Ellerbach/LegoDimensions</PackageProjectUrl>
     <Description>Package allows to use Lego Dimensions pad and tags from a PC on Windows or Linux.</Description>
     <PackageTags>lego dimensions nfc rfid tag pad</PackageTags>
-    <Version>1.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="GitVersion.MsBuild" Version="5.12.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="LibUsbDotNet" Version="3.0.102-alpha" />
   </ItemGroup>
 
