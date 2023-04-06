@@ -34,9 +34,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --configuration Release --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal  
+      run: dotnet test --configuration Release --no-build --verbosity normal  
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
@@ -44,7 +44,7 @@ jobs:
         dotnet-version: 6.x
     # Create a nuget Release      
     - name: Pack the NuGet package
-      run: dotnet pack ./LegoDimensions --no-build --configuration Release --output ./artifacts
+      run: dotnet pack ./LegoDimensions --configuration Release --output ./artifacts
 
     # Publish all NuGet packages to NuGet.org
     # Use --skip-duplicate to prevent errors if a package with the same version already exists.
