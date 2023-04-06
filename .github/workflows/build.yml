@@ -53,7 +53,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     name: Create nuget Release
-    conditions: ${{ github.event.pull_request.merged }}
+    if: ${{ github.event.pull_request.merged }}
     steps:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
