@@ -14,7 +14,7 @@ namespace LegoDimensionsTests
             // Act & Assert
             Assert.True(LegoTag.IsVehicle(data.AsSpan(8, 4).ToArray()));
             var id = LegoTag.GetVehicleId(data);
-            Assert.Equal(123, id);
+            Assert.Equal(1123, id);
         }
 
         [Fact]
@@ -51,7 +51,7 @@ namespace LegoDimensionsTests
         public void EncryptVehicle()
         {
             // Arrange
-            ushort id = 123;
+            ushort id = 1123;
             byte[] data;
 
             // Act
