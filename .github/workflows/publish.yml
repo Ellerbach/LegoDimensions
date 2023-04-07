@@ -42,16 +42,6 @@ jobs:
     - name: Pack the NuGet package
       run: dotnet pack ./LegoDimensions --configuration Release --output ./artifacts
 
-    # Create GitHub release and CHANGELOG for Chocolatey and releases
-    # NOTE: this is where we prepend "v" before the version in the tag/release
-    - name: Create release
-      uses: ncipollo/release-action@v1
-      with:
-        # no artifacts: ""
-        body: ${{steps.github_release.outputs.changelog}}
-        tag: "v${{ steps.gitversion.outputs.MajorMinorPatch }}"
-        token: ${{ secrets.GITHUB_TOKEN }}
-
     # Publish all NuGet packages to NuGet.org
     # Use --skip-duplicate to prevent errors if a package with the same version already exists.
     # If you retry a failed workflow, already published packages will be skipped without error.
@@ -70,3 +60,13 @@ jobs:
         toTag: ${{ steps.gitversion.outputs.Sha }}
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Create GitHub release and CHANGELOG for Chocolatey and releases
+    # NOTE: this is where we prepend "v" before the version in the tag/release
+    - name: Create release
+      uses: ncipollo/release-action@v1
+      with:
+        # no artifacts: ""
+        body: ${{steps.github_release.outputs.changelog}}
+        tag: "v${{ steps.gitversion.outputs.MajorMinorPatch }}"
+        token: ${{ secrets.GITHUB_TOKEN }}
