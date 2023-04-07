@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
+// Laurent Ellerbach and contributors license this file to you under the MIT license.
 
 namespace LegoDimensionsTests
 {
@@ -15,7 +12,7 @@ namespace LegoDimensionsTests
             var col = Color.Red;
 
             // Act
-            var col2 = Color.ParseHex(col.ToString());
+            var col2 = Color.FromHex(col.ToString());
 
             // Assert
             Assert.Equal(col, col2);

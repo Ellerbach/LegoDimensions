@@ -1,6 +1,8 @@
 ﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
+using System.Reflection;
+
 namespace LegoDimensions
 {
     /// <summary>
@@ -1236,7 +1238,7 @@ namespace LegoDimensions
         /// </summary>
         /// <param name="intChar">Value to convert.</param>
         /// <returns>Int value.</returns>
-        public static int ParseHexChar(char intChar)
+        internal static int ParseHexChar(char intChar)
         {
             if (intChar >= '0' && intChar <= '9')
             {
@@ -1262,7 +1264,7 @@ namespace LegoDimensions
         /// <param name="hexString">Color String. Allowed formats are #AARRGGBB #RRGGBB #ARGB #RGB.</param>
         /// <returns>Returns an Color struct otherwise throws an exception.</returns>
         /// <exception>ArgumentException or FormatException.</exception>
-        public static Color ParseHex(string hexString)
+        public static Color FromHex(string hexString)
         {
             int r, g, b, a = 255;
 
@@ -1311,6 +1313,43 @@ namespace LegoDimensions
             }
 
             return Color.FromArgb((byte)a, (byte)r, (byte)g, (byte)b);
+        }
+
+        /// <summary>
+        /// Convert String with a known color name into an Color struct.
+        /// </summary>
+        /// <param name="color">The name of the color.</param>
+        /// <returns>A color.</returns>
+        public static Color GetColorFromString(string color)
+        {
+            // Firs check if we can convert with the name
+            var col = Color.FromColorName(color);
+            if (col != null)
+            {
+                return (Color)col;
+            }
+
+            return Color.FromHex(color);
+        }
+
+        /// <summary>
+        /// Tries to convert a string into a color either from a color name either from a HEX representation.
+        /// </summary>
+        /// <param name="strColor">The string to convert.</param>
+        /// <param name="color">The color.</param>
+        /// <returns>A color.</returns>
+        public static bool TryGetColor(string strColor, out Color color)
+        {
+            try
+            {
+                color = GetColorFromString(strColor);
+                return true;
+            }
+            catch
+            {
+                color = Color.Black;
+                return false;
+            }
         }
 
         /// <summary>
@@ -1399,9 +1438,14 @@ namespace LegoDimensions
         /// <returns>The 32-bit ARGB value of this System.Drawing.Color.</returns>
         public int ToArgb() => (int)_color;
 
+        /// <summary>
+        /// Converts a known Color name into a Color.
+        /// </summary>
+        /// <param name="colorName">The known color name.</param>
+        /// <returns>The color or null if not found.</returns>
         public static Color? FromColorName(string colorName)
         {
-            var members = typeof(Color).GetMethods();
+            var members = typeof(Color).GetMethods(BindingFlags.Static | BindingFlags.Public);
             foreach (var member in members)
             {
                 if (member.Name.Length > 4)

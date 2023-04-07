@@ -4,7 +4,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
 
-namespace LegoDimensions
+namespace LegoDimensions.Tag
 {
     /// <summary>
     /// Manage Lego Tag from NFC data.
@@ -19,7 +19,7 @@ namespace LegoDimensions
         /// <exception cref="ArgumentException">UID must be 7 bytes long.</exception>
         public static byte[] GenerateCardPassword(byte[] uid)
         {
-            if (uid is null || (uid.Length is not 7))
+            if (uid is null || uid.Length is not 7)
             {
                 throw new ArgumentException("UID must be 7 bytes long");
             }
@@ -44,7 +44,7 @@ namespace LegoDimensions
                               basic[i * 4 + 2] << 16 |
                               basic[i * 4 + 1] << 8 |
                               basic[i * 4]);
-                v2 = (b + v4 + v5 - v2);
+                v2 = b + v4 + v5 - v2;
             }
 
             return BitConverter.GetBytes(v2);
@@ -63,7 +63,7 @@ namespace LegoDimensions
                 throw new ArgumentException("Data must be at least 2 bytes long");
             }
 
-            return (ushort)(data[0] | (data[1] << 8));
+            return (ushort)(data[0] | data[1] << 8);
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace LegoDimensions
         /// <exception cref="ArgumentException">Data must be at least 8 bytes long.</exception>
         public static ushort GetCharacterId(byte[] uid, byte[] data)
         {
-            if (uid is null || (uid.Length is not 7))
+            if (uid is null || uid.Length is not 7)
             {
                 throw new ArgumentException("UID must be 7 bytes long.");
             }
@@ -123,7 +123,7 @@ namespace LegoDimensions
         /// <exception cref="ArgumentException">UID must be 7 bytes long.</exception>
         public static byte[] EncrypCharactertId(byte[] uid, ushort charid)
         {
-            if (uid is null || (uid.Length is not 7))
+            if (uid is null || uid.Length is not 7)
             {
                 throw new ArgumentException("UID must be 7 bytes long.");
             }
@@ -138,8 +138,8 @@ namespace LegoDimensions
             TeaEncrypt(buf, key);
             for (int i = 0; i < 4; i++)
             {
-                data[i] = (byte)(buf[0] >> (i * 8));
-                data[i + 4] = (byte)(buf[1] >> (i * 8));
+                data[i] = (byte)(buf[0] >> i * 8);
+                data[i + 4] = (byte)(buf[1] >> i * 8);
             }
 
             return data;
@@ -152,16 +152,16 @@ namespace LegoDimensions
         /// <returns>A 4 bytes array to be stored at page 0x24 of the NFC. Note that page 0x26 needs to be set with 0x00 0x01 0x00 0x00.</returns>
         public static byte[] EncryptVehicleId(ushort vecId)
         {
-            byte[] data = new byte[4] { 0x00, 0x00, 0x00, 0x00 };            
+            byte[] data = new byte[4] { 0x00, 0x00, 0x00, 0x00 };
             data[0] = (byte)(vecId & 0xFF);
-            data[1] = (byte)((vecId >> 8) & 0xFF);
+            data[1] = (byte)(vecId >> 8 & 0xFF);
 
             return data;
         }
 
         private static uint RotateRight(uint value, int count)
         {
-            return (value >> count) | (value << (32 - count));
+            return value >> count | value << 32 - count;
         }
 
         private static uint Scramble(byte[] uid, byte cnt)
@@ -178,7 +178,7 @@ namespace LegoDimensions
             // Copy the UID into the first 7 bytes of the basic array
             Array.Copy(uid, basic, uid.Length);
 
-            basic[(cnt * 4) - 1] = 0xaa;
+            basic[cnt * 4 - 1] = 0xaa;
             for (int i = 0; i < cnt; i++)
             {
                 b = BinaryPrimitives.ReadUInt32LittleEndian(basic.AsSpan(i * 4, 4));
@@ -223,8 +223,8 @@ namespace LegoDimensions
             for (i = 0; i < 32; i++)
             {
                 sum += delta;
-                v0 += ((v1 << 4) + k0) ^ (v1 + sum) ^ ((v1 >> 5) + k1);
-                v1 += ((v0 << 4) + k2) ^ (v0 + sum) ^ ((v0 >> 5) + k3);
+                v0 += (v1 << 4) + k0 ^ v1 + sum ^ (v1 >> 5) + k1;
+                v1 += (v0 << 4) + k2 ^ v0 + sum ^ (v0 >> 5) + k3;
             }
             /* end cycle */
 
@@ -257,8 +257,8 @@ namespace LegoDimensions
             /* basic cycle start */
             for (i = 0; i < 32; i++)
             {
-                v1 -= ((v0 << 4) + k2) ^ (v0 + sum) ^ ((v0 >> 5) + k3);
-                v0 -= ((v1 << 4) + k0) ^ (v1 + sum) ^ ((v1 >> 5) + k1);
+                v1 -= (v0 << 4) + k2 ^ v0 + sum ^ (v0 >> 5) + k3;
+                v0 -= (v1 << 4) + k0 ^ v1 + sum ^ (v1 >> 5) + k1;
                 sum -= delta;
             }
             /* end cycle */
