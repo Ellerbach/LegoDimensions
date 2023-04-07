@@ -38,13 +38,19 @@ jobs:
     - name: Test
       run: dotnet test --configuration Release --no-build --verbosity normal  
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 6.x
     # Create a nuget Release      
     - name: Pack the NuGet package
       run: dotnet pack ./LegoDimensions --configuration Release --output ./artifacts
+
+    # Create GitHub release and CHANGELOG for Chocolatey and releases
+    # NOTE: this is where we prepend "v" before the version in the tag/release
+    - name: Create release
+      uses: ncipollo/release-action@v1
+      with:
+        # no artifacts: ""
+        body: ${{steps.github_release.outputs.changelog}}
+        tag: "v${{ steps.gitversion.outputs.MajorMinorPatch }}"
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     # Publish all NuGet packages to NuGet.org
     # Use --skip-duplicate to prevent errors if a package with the same version already exists.
