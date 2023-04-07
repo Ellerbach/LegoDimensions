@@ -6,7 +6,6 @@ on:
 
 jobs:
   publish:
-    permissions: read-all|write-all
     runs-on: ubuntu-latest
 
     steps:
