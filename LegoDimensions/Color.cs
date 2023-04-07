@@ -1,6 +1,8 @@
 ﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
+using System.Reflection;
+
 namespace LegoDimensions
 {
     /// <summary>
@@ -1443,7 +1445,7 @@ namespace LegoDimensions
         /// <returns>The color or null if not found.</returns>
         public static Color? FromColorName(string colorName)
         {
-            var members = typeof(Color).GetMethods(System.Reflection.BindingFlags.Static);
+            var members = typeof(Color).GetMethods(BindingFlags.Static | BindingFlags.Public);
             foreach (var member in members)
             {
                 if (member.Name.Length > 4)

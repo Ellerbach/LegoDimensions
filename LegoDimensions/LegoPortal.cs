@@ -197,12 +197,7 @@ namespace LegoDimensions
             SendMessage(message);
         }
 
-        /// <summary>
-        /// Flashes a color on a all pads.
-        /// </summary>
-        /// <param name="flashPadCenter">The flash pad settings for center pad.</param>
-        /// <param name="flashPadLeft">The flash pad settings for pad left.</param>
-        /// <param name="flashPadRight">The flash pad settings for pad right.</param>
+        /// <inheritdoc/>
         public void FlashAll(FlashPad flashPadCenter, FlashPad flashPadLeft, FlashPad flashPadRight)
         {
             Message message = new Message(MessageCommand.FlashAll);
@@ -212,11 +207,7 @@ namespace LegoDimensions
             SendMessage(message);
         }
 
-        /// <summary>
-        /// Fades a color on a specific Pad.
-        /// </summary>
-        /// <param name="pad">The Pad(s) to fade.</param>
-        /// <param name="fadePad">The fade pad settings.</param>
+        /// <inheritdoc/>
         public void Fade(Pad pad, FadePad fadePad)
         {
             Message message = new Message(MessageCommand.Fade);
@@ -224,11 +215,7 @@ namespace LegoDimensions
             SendMessage(message);
         }
 
-        /// <summary>
-        /// Fades a color on a specific Pad.
-        /// </summary>
-        /// <param name="pad">The Pad(s) to fade.</param>
-        /// <param name="fadePad">The fade pad settings.</param>
+        /// <inheritdoc/>
         public void FadeAll(FadePad fadePadCenter, FadePad fadePadLeft, FadePad fadePadRight)
         {
             Message message = new Message(MessageCommand.FadeAll);
@@ -238,12 +225,7 @@ namespace LegoDimensions
             SendMessage(message);
         }
 
-        /// <summary>
-        /// Fades a random color on a specific Pad.
-        /// </summary>
-        /// <param name="pad">The Pad(s) to fade.</param>
-        /// <param name="tickTime">The time to to fade. The higher, the longer.</param>
-        /// <param name="tickCount">>The tick count. Even will stop on old color, odd on the new one.</param>
+        /// <inheritdoc/>
         public void FadeRandom(Pad pad, byte tickTime, byte tickCount)
         {
             Message message = new Message(MessageCommand.FadeRandom);
@@ -592,6 +574,7 @@ namespace LegoDimensions
             return _messageId;
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             _cancelThread.Cancel();

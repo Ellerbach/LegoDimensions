@@ -61,5 +61,35 @@ namespace LegoDimensions
         /// <param name="pad">The Pad(s) to flash.</param>
         /// <param name="flashPad">The flash pad settings.</param>
         void Flash(Pad pad, FlashPad flashPad);
+
+        /// <summary>
+        /// Flashes a color on a all pads.
+        /// </summary>
+        /// <param name="flashPadCenter">The flash pad settings for center pad.</param>
+        /// <param name="flashPadLeft">The flash pad settings for pad left.</param>
+        /// <param name="flashPadRight">The flash pad settings for pad right.</param>
+        void FlashAll(FlashPad flashPadCenter, FlashPad flashPadLeft, FlashPad flashPadRight);
+
+        /// <summary>
+        /// Fades a color on a specific Pad.
+        /// </summary>
+        /// <param name="pad">The Pad(s) to fade.</param>
+        /// <param name="fadePad">The fade pad settings.</param>
+        void Fade(Pad pad, FadePad fadePad);
+
+        /// <summary>
+        /// Fades a color on a specific Pad.
+        /// </summary>
+        /// <param name="pad">The Pad(s) to fade.</param>
+        /// <param name="fadePad">The fade pad settings.</param>
+        void FadeAll(FadePad fadePadCenter, FadePad fadePadLeft, FadePad fadePadRight);
+
+        /// <summary>
+        /// Fades a random color on a specific Pad.
+        /// </summary>
+        /// <param name="pad">The Pad(s) to fade.</param>
+        /// <param name="tickTime">The time to to fade. The higher, the longer.</param>
+        /// <param name="tickCount">>The tick count. Even will stop on old color, odd on the new one.</param>
+        void FadeRandom(Pad pad, byte tickTime, byte tickCount);
     }
 }
