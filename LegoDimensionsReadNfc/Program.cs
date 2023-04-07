@@ -5,7 +5,7 @@ using Iot.Device.Card.CreditCardProcessing;
 using Iot.Device.Card.Ultralight;
 using Iot.Device.Pn532;
 using Iot.Device.Pn532.ListPassive;
-using LegoDimensions;
+using LegoDimensions.Tag;
 using System.Diagnostics;
 
 Console.WriteLine("Place the empty NTAG21x on the reader!");

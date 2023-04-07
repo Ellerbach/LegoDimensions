@@ -1,7 +1,7 @@
 ﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
-namespace LegoDimensions
+namespace LegoDimensions.Portal
 {
     /// <summary>
     /// A fade class to fade pads.
@@ -21,7 +21,7 @@ namespace LegoDimensions
         /// <param name="tickCount">The tick count. Even will stop on old color, odd on the new one. 0 is never.</param>
         /// <param name="color">The old color to fade from.</param>
         /// <param name="enabled">True if pad should be anabled.</param>
-        public FadePad(byte tickTime, byte tickCount, Color color, bool enabled = true)         
+        public FadePad(byte tickTime, byte tickCount, Color color, bool enabled = true)
         {
             TickTime = tickTime;
             TickCount = tickCount;

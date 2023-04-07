@@ -1,22 +1,21 @@
 ﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
-namespace LegoDimensions
+namespace LegoDimensions.Portal
 {
     /// <summary>
-    /// The message source.
+    /// The message type.
     /// </summary>
-    public enum MessageSource
+    public enum MessageType
     {
+        /// <summary>
+        /// Normal message. This is the default one.
+        /// </summary>
+        Normal = 0x55,
 
         /// <summary>
-        /// Message coming from the machine.
+        /// Event message. Rasied when a Tag is placed or removed.
         /// </summary>
-        Machine = 0,
-
-        /// <summary>
-        /// Message coming from then portal.
-        /// </summary>
-        Portal = 1,
+        Event = 0x56,
     }
 }

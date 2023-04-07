@@ -4,7 +4,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace LegoDimensions
+namespace LegoDimensions.Portal
 {
     /// <summary>
     /// A message from or to the portal.
@@ -75,13 +75,13 @@ namespace LegoDimensions
 
             MessageType messageType = (MessageType)readBuffer[0];
             // message type
-            if ((messageType != MessageType.Normal) && (messageType != MessageType.Event))
+            if (messageType != MessageType.Normal && messageType != MessageType.Event)
             {
                 throw new ArgumentException("Invalid message tyep.");
             }
 
             int length = readBuffer[1];
-            if ((length < 1) || (length > 31))
+            if (length < 1 || length > 31)
             {
                 throw new ArgumentException("Invalid payload size");
             }

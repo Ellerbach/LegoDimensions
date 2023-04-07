@@ -2,6 +2,8 @@
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
 using LegoDimensions;
+using LegoDimensions.Portal;
+using LegoDimensions.Tag;
 
 List<LegoTagEventArgs> tags = new List<LegoTagEventArgs>();
 

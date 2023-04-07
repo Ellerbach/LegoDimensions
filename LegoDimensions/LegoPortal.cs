@@ -1,6 +1,8 @@
 ﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
+using LegoDimensions.Portal;
+using LegoDimensions.Tag;
 using LibUsbDotNet;
 using LibUsbDotNet.LibUsb;
 using LibUsbDotNet.Main;
@@ -12,7 +14,7 @@ namespace LegoDimensions
     /// <summary>
     /// Instance of a Lego Dimensions Portal.
     /// </summary>
-    public class LegoPortal : IDisposable
+    public class LegoPortal : IDisposable, ILegoPortal
     {
         // Constants
         private const int ProductId = 0x0241;
@@ -69,9 +71,7 @@ namespace LegoDimensions
             return selectedDevice.ToArray();
         }
 
-        /// <summary>
-        /// Event when a tag is added or removed
-        /// </summary>
+        /// <inheritdoc/>
         public event EventHandler<LegoTagEventArgs>? LegoTagEvent;
 
         /// <summary>
@@ -79,9 +79,7 @@ namespace LegoDimensions
         /// </summary>
         public IEnumerable<PresentTag> PresentTags => _presentTags;
 
-        /// <summary>
-        /// Gets or sets the NFC reader enablement.
-        /// </summary>
+        /// <inheritdoc/>
         public bool NfcEnabled
         {
             get => _nfcEnabled;
@@ -94,10 +92,7 @@ namespace LegoDimensions
             }
         }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether to get the tag details once a new tag is added.
-        /// </summary>
-        /// <remarks>Set this to false if you are only interested in getting the Card UID and no details.</remarks>
+        /// <inheritdoc/>
         public bool GetTagDetails { get; set; } = true;
 
         /// <summary>
@@ -135,9 +130,7 @@ namespace LegoDimensions
             WakeUp();
         }
 
-        /// <summary>
-        /// Wakes up the portal.
-        /// </summary>
+        /// <inheritdoc/>
         public void WakeUp()
         {
             Message message = new Message(MessageCommand.Wake);
@@ -150,11 +143,7 @@ namespace LegoDimensions
             //SendMessage(message);
         }
 
-        /// <summary>
-        /// Sets a color on a specific Pad.
-        /// </summary>
-        /// <param name="pad">The Pad(s) to set the color.</param>
-        /// <param name="color">The color.</param>
+        /// <inheritdoc/>
         public void SetColor(Pad pad, Color color)
         {
             Message message = new Message(MessageCommand.Color);
@@ -162,11 +151,7 @@ namespace LegoDimensions
             SendMessage(message);
         }
 
-        /// <summary>
-        /// Gets the color of a specific Pad.
-        /// </summary>
-        /// <param name="pad">The Pad to get the color.</param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public Color GetColor(Pad pad)
         {
             Message message = new Message(MessageCommand.GetColor);
@@ -189,33 +174,22 @@ namespace LegoDimensions
             return padColor;
         }
 
-        /// <summary>
-        /// Sets colors on all the pad at the same time immediatly.
-        /// </summary>
-        /// <param name="padCenter">The center Pad's color.</param>
-        /// <param name="padLeft">The left Pad's color.</param>
-        /// <param name="padRight">The right Pad's color.</param>
+        /// <inheritdoc/>
         public void SetColorAll(Color padCenter, Color padLeft, Color padRight)
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(true, padCenter, true, padLeft, true, padRight);
         }
 
-        /// <summary>
-        /// Switches off colors on all the pad at the same time immediatly.
-        /// </summary>
-        public void SwithOffAll()
+        /// <inheritdoc/>
+        public void SwitchOffAll()
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(false, Color.Black, false, Color.Black, false, Color.Black);
             SendMessage(message);
         }
 
-        /// <summary>
-        /// Flashes a color on a specific Pad.
-        /// </summary>
-        /// <param name="pad">The Pad(s) to flash.</param>
-        /// <param name="flashPad">The flash pad settings.</param>
+        /// <inheritdoc/>
         public void Flash(Pad pad, FlashPad flashPad)
         {
             Message message = new Message(MessageCommand.Flash);
@@ -314,7 +288,7 @@ namespace LegoDimensions
         /// <returns>True if success.</returns>
         public bool WriteTag(byte index, byte page, byte[] bytes)
         {
-            if(bytes.Length != 4)
+            if (bytes.Length != 4)
             {
                 throw new ArgumentException("Write to card must be 4 bytes.");
             }
@@ -380,7 +354,7 @@ namespace LegoDimensions
             byte[] readBytes = new byte[0];
             // Wait maximum 2 seconds
             getChallenge.WaitOne(ReceiveTimeout, true);
-            
+
             if (commandId.Result != null)
             {
                 readBytes = (byte[])commandId.Result;

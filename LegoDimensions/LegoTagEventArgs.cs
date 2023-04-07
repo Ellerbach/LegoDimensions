@@ -1,6 +1,9 @@
 ﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
+using LegoDimensions.Portal;
+using LegoDimensions.Tag;
+
 namespace LegoDimensions
 {
     /// <summary>
