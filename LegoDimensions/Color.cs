@@ -1318,7 +1318,7 @@ namespace LegoDimensions
         /// </summary>
         /// <param name="other">An object to compare with this object.</param>
         /// <returns>true if the current object is equal to other; otherwise, false.</returns>
-        public bool Equals(Color other) => _color == other._color;
+        public override bool Equals(object other) => _color == ((Color)other)._color;
 
         /// <summary>
         /// Gets the hue-saturation-lightness (HSL) lightness value for this System.Drawing.Color structure.
@@ -1398,5 +1398,28 @@ namespace LegoDimensions
         /// </summary>
         /// <returns>The 32-bit ARGB value of this System.Drawing.Color.</returns>
         public int ToArgb() => (int)_color;
+
+        public static Color? FromColorName(string colorName)
+        {
+            var members = typeof(Color).GetMethods();
+            foreach (var member in members)
+            {
+                if (member.Name.Length > 4)
+                {
+                    if (string.Compare(member.Name.Substring(4), colorName, true) == 0)
+                    {
+                        return (Color)member.Invoke(null, null);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the color in standard HEX format
+        /// </summary>
+        /// <returns>The standard HEX string.</returns>
+        public override string ToString() => $"#{GetHashCode():X2}";
     }
 }
