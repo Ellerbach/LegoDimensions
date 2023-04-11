@@ -11,6 +11,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LegoDimensionsReadNfc", "Le
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LegoDimensionsTests", "LegoDimensionsTests\LegoDimensionsTests.csproj", "{00A6515D-0CD6-47CB-B4AB-DC3204F89A26}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LegoDimensionsRunner", "LegoDimensionsRunner\LegoDimensionsRunner.csproj", "{08BE4D7D-F78B-45B7-9F6F-CA8FA844C481}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LegoDimensionsRunnerTests", "LegoDimensionsRunnerTests\LegoDimensionsRunnerTests.csproj", "{2B097815-C1A5-4DEB-A359-313F8D05D04E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{00A6515D-0CD6-47CB-B4AB-DC3204F89A26}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{00A6515D-0CD6-47CB-B4AB-DC3204F89A26}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{00A6515D-0CD6-47CB-B4AB-DC3204F89A26}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08BE4D7D-F78B-45B7-9F6F-CA8FA844C481}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08BE4D7D-F78B-45B7-9F6F-CA8FA844C481}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08BE4D7D-F78B-45B7-9F6F-CA8FA844C481}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08BE4D7D-F78B-45B7-9F6F-CA8FA844C481}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B097815-C1A5-4DEB-A359-313F8D05D04E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B097815-C1A5-4DEB-A359-313F8D05D04E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B097815-C1A5-4DEB-A359-313F8D05D04E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B097815-C1A5-4DEB-A359-313F8D05D04E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
