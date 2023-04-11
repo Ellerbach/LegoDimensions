@@ -86,13 +86,13 @@ The `SetColor` function allows you to set the color on one or all pads at the sa
 
 ```csharp
 Console.WriteLine("Pad left blue");
-portal.SetColor(Pad.LeftPad, Color.Blue);
+portal.SetColor(Pad.Left, Color.Blue);
 Thread.Sleep(1000);
 Console.WriteLine("Pad center white");
-portal.SetColor(Pad.CenterPad, Color.White);
+portal.SetColor(Pad.Center, Color.White);
 Thread.Sleep(1000);
 Console.WriteLine("Pad right purple");
-portal.SetColor(Pad.RightPad, Color.Red);
+portal.SetColor(Pad.Right, Color.Red);
 Thread.Sleep(1000);
 Console.WriteLine("All yellow");
 portal.SetColor(Pad.AllPads, Color.Yellow);
@@ -106,7 +106,7 @@ You can as well check the color that is currently displayed on a specific pad.
 Console.WriteLine("All yellow");
 portal.SetColor(Pad.AllPads, Color.Yellow);
 Thread.Sleep(200);
-var col = portal.GetColor(Pad.LeftPad);
+var col = portal.GetColor(Pad.Left);
 Console.WriteLine($"Pad left color: {col.R}-{col.G}-{col.B}");
 ```
 
@@ -133,7 +133,7 @@ The FlashPad uses 3 settings:
 
 ```csharp
 Console.WriteLine("Pad right azure flashing 20 times (10 on and 10 off)");
-portal.Flash(Pad.RightPad, new FlashPad(20, 20, 20, Color.Azure));
+portal.Flash(Pad.Right, new FlashPad(20, 20, 20, Color.Azure));
 ```
 
 ### Flashing all pads
@@ -155,7 +155,7 @@ You can fade one or all pads at the same time. The fading speed is determined by
 
 ```csharp
 Console.WriteLine("Fade center pad relatively slowly from the displayed color to red, will finish on the new color as odd number of count.");
-portal.Fade(Pad.CenterPad, new FadePad(50, 5, Color.Red));
+portal.Fade(Pad.Center, new FadePad(50, 5, Color.Red));
 ```
 
 ### Fading all pads
@@ -175,13 +175,13 @@ This can be used to fade a pad on a random color, the speed and the count are th
 
 ```csharp
 Console.WriteLine("Randome fading on left pad");
-portal.FadeRandom(Pad.LeftPad, 10, 10);
+portal.FadeRandom(Pad.Left, 10, 10);
 Thread.Sleep(1000);
 Console.WriteLine("Randome fading on center pad");
-portal.FadeRandom(Pad.CenterPad, 1, 100);
+portal.FadeRandom(Pad.Center, 1, 100);
 Thread.Sleep(1000);
 Console.WriteLine("Randome fading on right pad");
-portal.FadeRandom(Pad.RightPad, 5, 15);
+portal.FadeRandom(Pad.Right, 5, 15);
 Thread.Sleep(1000);
 ```
 

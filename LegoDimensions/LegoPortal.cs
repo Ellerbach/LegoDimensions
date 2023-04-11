@@ -96,12 +96,24 @@ namespace LegoDimensions
         public bool GetTagDetails { get; set; } = true;
 
         /// <summary>
+        /// Gets the ID.
+        /// </summary>
+        public int Id { get; internal set; }
+
+        /// <summary>
+        /// Gets the underlying USB device.
+        /// </summary>
+        public IUsbDevice UsbDevice => _portal;
+
+        /// <summary>
         /// Creates a new instance of a Lego Dimensions Portal.
         /// </summary>
         /// <param name="device">A valid Lego Dimensions instance.</param>
-        public LegoPortal(IUsbDevice device)
+        /// <param name="id">An ID for this device, can be handy if you manage multiple ones.</param>
+        public LegoPortal(IUsbDevice device, int id = 0)
         {
             _portal = device;
+            Id = id;
             //Open the device
             _portal.Open();
 
