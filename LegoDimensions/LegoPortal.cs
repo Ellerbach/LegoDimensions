@@ -22,6 +22,9 @@ namespace LegoDimensions
         private const int ReadWriteTimeout = 1000;
         private const int ReceiveTimeout = 2000;
 
+        // This needs to be static to keep the context otherwise, the app will close it
+        private static UsbContext context = null;
+
         // Class variables
         private IUsbDevice _portal;
         private UsbEndpointReader _endpointReader;
@@ -59,9 +62,12 @@ namespace LegoDimensions
         /// <returns>Array of USB devices.</returns>
         public static IUsbDevice[] GetPortals()
         {
-            var context = new UsbContext();
+            context ??= new UsbContext();
+#if DEBUG
             context.SetDebugLevel(LogLevel.Info);
-
+#else
+            context.SetDebugLevel(LogLevel.Error);
+#endif
             //Get a list of all connected devices
             var usbDeviceCollection = context.List();
 

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "LegoDimensionsRunner": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\tmp\\LegoDimensionsInvest\\LegoDimensionsRunner\\sample.json"
+    }
+  }
+}

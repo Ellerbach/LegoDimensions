@@ -1,0 +1,72 @@
+{
+    "Animations": [
+        {
+            "Name": "First Animation",
+            "Actions": [
+                "Name=SetColor,Pad=All,Color=Blue,Duration=3000",
+                "Name=SetColor,Pad=All,Color=White,Duration=3000",
+                "Name=SetColor,Pad=All,Color=Red,Duration=3000",
+                "Name=SetColor,Pad=Center,Color=Tan,Duration=2000",
+                "Name=SetColor,Pad=Left,Color=Yellow,Duration=2000",
+                "Name=SetColor,Pad=All,Color=Green,Duration=2000"
+            ]
+        },
+        {
+            "Name": "Second Animation",
+            "Actions": [
+                "Name=SetColor,Pad=All,Color=Blue,Duration=3000",
+                "Name=FadeRandom,Pad=All,Duration=3000,TickTime=20,TickCount=10",
+                "Name=FadeRandom,Pad=Center,Duration=2000,TickTime=10,TickCount=10",
+                "Name=FadeRandom,Pad=Left,Duration=2000,TickTime=10,TickCount=10",
+                "Name=FadeRandom,Pad=Right,Duration=2000,TickTime=10,TickCount=10"
+            ]
+        },
+        {
+            "Name": "Event left",
+            "Actions": [
+                "Name=SetColor,Pad=left,Color=Red"
+            ]
+        },
+        {
+            "Name": "Event center",
+            "Actions": [
+                "Name=SetColor,Pad=Center,Color=Red"
+            ]
+        },
+        {
+            "Name": "Event right",
+            "Actions": [
+                "Name=SetColor,Pad=right,Color=Red"
+            ]
+        },
+        {
+            "Name": "Event all",
+            "Actions": [
+                "Name=SetColor,Pad=All,Color=Red"
+            ]
+        }
+    ],
+    "Events": [
+        {
+            "Pad": 2,
+            "Animation": "Event left"
+        },
+        {
+            "Pad": 1,
+            "Animation": "Event center"
+        },
+        {
+            "Pad": 3,
+            "Animation": "Event right"
+        },
+        {
+            "Pad": 0,
+            "Animation": "Event all",
+            "Id": 123
+        }
+    ],
+    "Playlist": [
+        "First Animation",
+        "Second Animation"
+    ]
+}
