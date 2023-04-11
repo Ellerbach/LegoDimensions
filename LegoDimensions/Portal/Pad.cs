@@ -11,21 +11,21 @@ namespace LegoDimensions.Portal
         /// <summary>
         /// All the pads.
         /// </summary>
-        AllPads = 0,
+        All = 0,
 
         /// <summary>
         /// The Center Pad.
         /// </summary>
-        CenterPad = 1,
+        Center = 1,
 
         /// <summary>
         /// The Left Pad.
         /// </summary>
-        LeftPad = 2,
+        Left = 2,
 
         /// <summary>
         /// The Right Pad.
         /// </summary>
-        RightPad = 3,
+        Right = 3,
     }
 }

@@ -59,24 +59,24 @@ void PortalLegoTagEvent(object? sender, LegoTagEventArgs e)
 void TestColor0xC0()
 {
     Console.WriteLine("Pad left blue");
-    portal.SetColor(Pad.LeftPad, Color.Blue);
+    portal.SetColor(Pad.Left, Color.Blue);
     Thread.Sleep(1000);
     Console.WriteLine("Pad center white");
-    portal.SetColor(Pad.CenterPad, Color.White);
+    portal.SetColor(Pad.Center, Color.White);
     Thread.Sleep(1000);
     Console.WriteLine("Pad right purple");
-    portal.SetColor(Pad.RightPad, Color.Red);
+    portal.SetColor(Pad.Right, Color.Red);
     Thread.Sleep(1000);
     Console.WriteLine("All yellow");
-    portal.SetColor(Pad.AllPads, Color.Yellow);
+    portal.SetColor(Pad.All, Color.Yellow);
 }
 
 void TestGetColor0xC1()
 {
     Console.WriteLine("All yellow");
-    portal.SetColor(Pad.AllPads, Color.Yellow);
+    portal.SetColor(Pad.All, Color.Yellow);
     Thread.Sleep(200);
-    var col = portal.GetColor(Pad.LeftPad);
+    var col = portal.GetColor(Pad.Left);
     Console.WriteLine($"Pad left color: {col.R}-{col.G}-{col.B}");
 }
 
@@ -89,7 +89,7 @@ void TestSetColorAllPads0xC8()
 void TestFlashPad0xCC3()
 {
     Console.WriteLine("Pad right azure flashing 20 times (10 on and 10 off)");
-    portal.Flash(Pad.RightPad, new FlashPad(20, 20, 20, Color.Azure));
+    portal.Flash(Pad.Right, new FlashPad(20, 20, 20, Color.Azure));
     Thread.Sleep(4000);
 }
 
@@ -104,7 +104,7 @@ void TestFlashAllPads0xCC7()
 void TestFade0xC2()
 {
     Console.WriteLine("Fade center pad relatively slowly from the displayed color to red, will finish on the new color as odd number of count.");
-    portal.Fade(Pad.CenterPad, new FadePad(50, 5, Color.Red));
+    portal.Fade(Pad.Center, new FadePad(50, 5, Color.Red));
 }
 
 void TestFadeAll0xC6()
@@ -118,13 +118,13 @@ void TestFadeAll0xC6()
 void TestFadeRandom0xC5()
 {
     Console.WriteLine("Randome fading on left pad");
-    portal.FadeRandom(Pad.LeftPad, 10, 10);
+    portal.FadeRandom(Pad.Left, 10, 10);
     Thread.Sleep(1000);
     Console.WriteLine("Randome fading on center pad");
-    portal.FadeRandom(Pad.CenterPad, 1, 100);
+    portal.FadeRandom(Pad.Center, 1, 100);
     Thread.Sleep(1000);
     Console.WriteLine("Randome fading on right pad");
-    portal.FadeRandom(Pad.RightPad, 5, 15);
+    portal.FadeRandom(Pad.Right, 5, 15);
     Thread.Sleep(1000);
 }
 
