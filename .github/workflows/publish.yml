@@ -1,10 +1,11 @@
-name: Publish .NET nuget
+name: Publish .NET nuget and create release
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
+
   before_publish:
     runs-on: ubuntu-latest
     outputs:
