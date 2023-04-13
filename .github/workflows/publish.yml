@@ -18,12 +18,11 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         labels: '["publish"]'
-    - name: Output labels
-      run: echo ${{ steps.pr-labels.outputs.result }}
     
   publish:
     runs-on: ubuntu-latest
     if: needs.before_publish.outputs.pr-labels == 'true'
+    needs: before_publish
     steps:
     # Checkout sources. Depth=0 is for using GitVersion
     - name: Checkout
