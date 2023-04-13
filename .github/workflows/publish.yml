@@ -63,7 +63,7 @@ jobs:
         dotnet publish ./LegoDimensionsReadNfc -r linux-arm -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
         dotnet publish ./LegoDimensionsReadNfc -r win-x64 -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
 
-   - name: Build Runner app
+    - name: Build Runner app
       run: |
         dotnet publish ./LegoDimensionsRunner -r linux-arm -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
         dotnet publish ./LegoDimensionsRunner -r win-x64 -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
