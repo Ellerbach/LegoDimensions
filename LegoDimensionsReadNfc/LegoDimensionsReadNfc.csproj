@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Iot.Device.Bindings" Version="2.3.0-prerelease.22520.10" />
+    <PackageReference Include="Terminal.Gui" Version="1.10.1" />
   </ItemGroup>
 
   <ItemGroup>
