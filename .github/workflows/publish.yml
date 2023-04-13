@@ -5,9 +5,25 @@ on:
     branches: [ "main" ]
 
 jobs:
+  before_publish:
+    runs-on: ubuntu-latest
+    outputs:
+      pr-labels: ${{ steps.pr-labels.outputs.result }}
+    steps:
+    
+    # This is getting all the labels sets on the PR
+    - name: Get PR labels
+      id: pr-labels
+      uses: shioyang/check-pr-labels-on-push-action@v1.0.9
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        labels: '["publish"]'
+    - name: Output labels
+      run: echo ${{ steps.pr-labels.outputs.result }}
+    
   publish:
     runs-on: ubuntu-latest
-
+    if: needs.before_publish.outputs.pr-labels == 'true'
     steps:
     # Checkout sources. Depth=0 is for using GitVersion
     - name: Checkout
@@ -42,6 +58,16 @@ jobs:
     - name: Pack the NuGet package
       run: dotnet pack ./LegoDimensions --configuration Release --output ./artifacts
 
+    - name: Build NFC app
+      run: |
+        dotnet publish ./LegoDimensionsReadNfc -r linux-arm -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
+        dotnet publish ./LegoDimensionsReadNfc -r win-x64 -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
+
+   - name: Build Runner app
+      run: |
+        dotnet publish ./LegoDimensionsRunner -r linux-arm -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
+        dotnet publish ./LegoDimensionsRunner -r win-x64 -c Release --output ./artifacts --self-contained true -p:PublishSingleFile=true
+
     # Publish all NuGet packages to NuGet.org
     # Use --skip-duplicate to prevent errors if a package with the same version already exists.
     # If you retry a failed workflow, already published packages will be skipped without error.
@@ -70,3 +96,4 @@ jobs:
         body: ${{steps.github_release.outputs.changelog}}
         tag: "v${{ steps.gitversion.outputs.MajorMinorPatch }}"
         token: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: "**/artifacts/*.nupkg,**/artifacts/LegoDimensionsReadNfc,**/artifacts/LegoDimensionsRunner,**/artifacts/*.exe"
