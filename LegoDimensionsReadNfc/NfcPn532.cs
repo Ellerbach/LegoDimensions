@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Terminal.Gui;
 
 namespace LegoDimensionsReadNfc
 {
@@ -17,6 +18,8 @@ namespace LegoDimensionsReadNfc
         static private string _device;
         static private Pn532 _pn532;
         static private byte[] _currentCardUid = new byte[0];
+        static private UltralightCard _ultralight;
+        static private DisplayInfo _displayInfo;
 
         static public void OpenComPort(string device)
         {
@@ -27,23 +30,37 @@ namespace LegoDimensionsReadNfc
         static public void ErraseTag()
         {
             bool reselected = false;
+            bool stopped = false;
+
+            Application.Init();
+            _displayInfo = new DisplayInfo();
+            _displayInfo.Label.Text = "Erase Tag: place an empty tag on the reader to erase it.";
+            _displayInfo.View.Text = string.Empty;
+            _displayInfo.ButtonClose.Clicked += () =>
+            {
+                stopped = true; ;
+                Application.RequestStop();
+            };
+            
+            (new Thread(() => Application.Run(_displayInfo))).Start();
 
         Reselect:
-            var ultralight = GetUltralightCard();
-            Debug.WriteLine($"Type: {ultralight.UltralightCardType}, Ndef capacity: {ultralight.NdefCapacity}");
+            _currentCardUid = new byte[0];
+            GetUltralightCard();
+            Debug.WriteLine($"Type: {_ultralight.UltralightCardType}, Ndef capacity: {_ultralight.NdefCapacity}");
 
             if (reselected)
             {
-                var passwd = LegoTag.GenerateCardPassword(ultralight.SerialNumber);
-                if (!ultralight.ProcessAuthentication(passwd))
+                var passwd = LegoTag.GenerateCardPassword(_ultralight.SerialNumber);
+                if (!_ultralight.ProcessAuthentication(passwd))
                 {
-                    Console.WriteLine("Failed to authenticate the card.");
+                    _displayInfo.View.Text += "Failed to authenticate the card.\r\n";
                     return;
                 }
             }
 
             // Try to read the car on 0x24 just to see if we need the password
-            if (!ReadBlock(ultralight, 0x24))
+            if (!ReadBlock(0x24))
             {
                 if (!reselected)
                 {
@@ -51,9 +68,9 @@ namespace LegoDimensionsReadNfc
                     goto Reselect;
                 }
 
-                if (!ReadBlock(ultralight, 0x24))
+                if (!ReadBlock(0x24))
                 {
-                    Console.WriteLine("Failed to read data block 0x24, can't erase the card.");
+                    _displayInfo.View.Text += "Failed to read data block 0x24, can't erase the card.\r\n";
                     return;
                 }
             }
@@ -61,48 +78,70 @@ namespace LegoDimensionsReadNfc
             bool erased = true;
             for (int i = 0; i < 4; i++)
             {
-                if (!WriteAndCheck(ultralight, (byte)(0x24 + i), new byte[4]))
+                if (!WriteAndCheck((byte)(0x24 + i), new byte[4]))
                 {
-                    Console.WriteLine($"Error erasing block 0x{(0x24 + i):X2}.");
+                    _displayInfo.View.Text += $"Error erasing block 0x{(0x24 + i):X2}.\r\n";
                     erased = false;
                 }
             }
 
             if (erased)
             {
-                Console.WriteLine("Card erased.");
+                _displayInfo.View.Text += "Card erased.\r\n";
             }
             else
             {
-                Console.WriteLine("Card may not have been erased properly.");
+                _displayInfo.View.Text += "Card may not have been erased properly.\r\n";
             }
+
+            while(!stopped)
+            {
+                Thread.Sleep(100);
+            }
+
+            Application.Shutdown();
         }
 
         static public void WriteEmptyTag(ushort id, bool character)
         {
             bool reselected = false;
+            bool stopped = false;
+
+            Application.Init();
+            _displayInfo = new DisplayInfo();
+            _displayInfo.Label.Text = "Write Tag: place an empty tag on the reader to write it.";
+            _displayInfo.View.Text = string.Empty;
+            _displayInfo.ButtonClose.Clicked += () =>
+            {
+                stopped = true; ;
+                Application.RequestStop();
+            };
+
+            (new Thread(() => Application.Run(_displayInfo))).Start();
 
         Reselect:
-            var ultralight = GetUltralightCard();
-            Debug.WriteLine($"Type: {ultralight.UltralightCardType}, Ndef capacity: {ultralight.NdefCapacity}");
+            _currentCardUid = new byte[0];
+            GetUltralightCard();
+            Debug.WriteLine($"Type: {_ultralight.UltralightCardType}, Ndef capacity: {_ultralight.NdefCapacity}");
 
             // First step: change the password
             // Process the password
-            var passwd = LegoTag.GenerateCardPassword(ultralight.SerialNumber);
-            Console.WriteLine($"Card {BitConverter.ToString(ultralight.SerialNumber)}, generated password: {BitConverter.ToString(passwd)}");
+            var passwd = LegoTag.GenerateCardPassword(_ultralight.SerialNumber);
+            _displayInfo.View.Text += $"Card {BitConverter.ToString(_ultralight.SerialNumber)}, generated password: {BitConverter.ToString(passwd)}\r\n";
 
             if (reselected)
             {
-                if (!ultralight.ProcessAuthentication(passwd))
+                if (!_ultralight.ProcessAuthentication(passwd))
                 {
-                    Console.WriteLine("Failed to authenticate the card.");
+                    _displayInfo.View.Text += "Failed to authenticate the card.\r\n";
+                    Application.RequestStop();
                     return;
                 }
             }
 
             // Try to read the car on 0x24 just to see if we need the password
 
-            if (!ReadBlock(ultralight, 0x24))
+            if (!ReadBlock(0x24))
             {
                 if (!reselected)
                 {
@@ -110,9 +149,10 @@ namespace LegoDimensionsReadNfc
                     goto Reselect;
                 }
 
-                if (ultralight.RunUltralightCommand() < 0)
+                if (_ultralight.RunUltralightCommand() < 0)
                 {
-                    Console.WriteLine("Failed to read data block 0x24, can't erase the card.");
+                    _displayInfo.View.Text += "Failed to read data block 0x24, can't erase the card.\r\n";
+                    Application.RequestStop();
                     return;
                 }
             }
@@ -120,37 +160,39 @@ namespace LegoDimensionsReadNfc
             if (!reselected)
             {
                 // 0x2B for NTAG213
-                if (ultralight.UltralightCardType == UltralightCardType.UltralightNtag213)
+                if (_ultralight.UltralightCardType == UltralightCardType.UltralightNtag213)
                 {
-                    ultralight.BlockNumber = 0x2B;
+                    _ultralight.BlockNumber = 0x2B;
                 }
-                else if (ultralight.UltralightCardType == UltralightCardType.UltralightNtag215)
+                else if (_ultralight.UltralightCardType == UltralightCardType.UltralightNtag215)
                 {
-                    ultralight.BlockNumber = 0x85;
+                    _ultralight.BlockNumber = 0x85;
                 }
-                else if (ultralight.UltralightCardType == UltralightCardType.UltralightNtag216)
+                else if (_ultralight.UltralightCardType == UltralightCardType.UltralightNtag216)
                 {
-                    ultralight.BlockNumber = 0xE5;
+                    _ultralight.BlockNumber = 0xE5;
                 }
                 else
                 {
-                    Console.WriteLine($"Not a supported NTAG card, only 213, 215 and 216 ar supported. Current detected type: {ultralight.UltralightCardType}");
+                    _displayInfo.View.Text += $"Not a supported NTAG card, only 213, 215 and 216 ar supported. Current detected type: {_ultralight.UltralightCardType}.\r\n";
+                    Application.RequestStop();
                     return;
                 }
 
-                ultralight.Command = UltralightCommand.Write4Bytes;
-                ultralight.Data = passwd;
-                if (ultralight.RunUltralightCommand() < 0)
+                _ultralight.Command = UltralightCommand.Write4Bytes;
+                _ultralight.Data = passwd;
+                if (_ultralight.RunUltralightCommand() < 0)
                 {
-                    Console.WriteLine("Failed to write new password");
+                    _displayInfo.View.Text += "Failed to write new password\r\n";
+                    Application.RequestStop();
                     return;
                 }
 
-                Console.WriteLine("New password set.");
+                _displayInfo.View.Text += "New password set.\r\n";
             }
             else
             {
-                Console.WriteLine("Password already set");
+                _displayInfo.View.Text += "Password already set\r\n";
             }
 
             int retry = 0;
@@ -158,16 +200,16 @@ namespace LegoDimensionsReadNfc
             if (character)
             {
                 // Get the encrypted character ID
-                var car = LegoTag.EncrypCharactertId(ultralight.SerialNumber, id);
+                var car = LegoTag.EncrypCharactertId(_ultralight.SerialNumber, id);
 
-                if (!WriteAndCheck(ultralight, 0x24, car.AsSpan(0, 4).ToArray()))
+                if (!WriteAndCheck(0x24, car.AsSpan(0, 4).ToArray()))
                 {
-                    Console.WriteLine("Most likely failed to write character as can't check block 0x24.");
+                    _displayInfo.View.Text +=  "Most likely failed to write character as can't check block 0x24.\r\n";
                 }
 
-                if (!WriteAndCheck(ultralight, 0x25, car.AsSpan(4, 4).ToArray()))
+                if (!WriteAndCheck(0x25, car.AsSpan(4, 4).ToArray()))
                 {
-                    Console.WriteLine("Most likely failed to write character as can't check block 0x25.");
+                    _displayInfo.View.Text += "Most likely failed to write character as can't check block 0x25.\r\n";
                 }
             }
             else
@@ -175,200 +217,246 @@ namespace LegoDimensionsReadNfc
 
                 // Get the encrypted vehicle ID
                 var vec = LegoTag.EncryptVehicleId(id);
-                if (!WriteAndCheck(ultralight, 0x24, vec))
+                if (!WriteAndCheck(0x24, vec))
                 {
-                    Console.WriteLine("Most likely failed to write vehicle as can't check block 0x24.");
+                    _displayInfo.View.Text += "Most likely failed to write vehicle as can't check block 0x24.\r\n";
                 }
 
                 // Then write it's a vehicle
-                if (!WriteAndCheck(ultralight, 0x26, new byte[] { 0x00, 0x01, 0x00, 0x00 }))
+                if (!WriteAndCheck(0x26, new byte[] { 0x00, 0x01, 0x00, 0x00 }))
                 {
-                    Console.WriteLine("Most likely failed to write vehicle as can't check block 0x26.");
-                    return;
+                    _displayInfo.View.Text += "Most likely failed to write vehicle as can't check block 0x26.\r\n";
                 }
             }
 
-            Console.WriteLine("Setup for the new card done");
+            _displayInfo.View.Text += "Setup for the new card done.\r\n";
+
+            while (!stopped)
+            {
+                Thread.Sleep(100);
+            }
+
+            Application.Shutdown();
         }
 
         static public void ReadLegoTag(bool dump)
         {
+            bool stopped = false;
+
+            Application.Init();
+             _displayInfo = new DisplayInfo();
+            _displayInfo.Label.Text = "Write Tag: place an empty tag on the reader to write it.";
+            _displayInfo.View.Text = string.Empty;
+            _displayInfo.ButtonClose.Clicked += () =>
+            {
+                stopped = true; ;
+                Application.RequestStop();
+            };
+
+            (new Thread(() => Application.Run(_displayInfo))).Start();
+            
             try
             {
-                var ultralight = GetUltralightCard();
+                _currentCardUid = new byte[0];
+                GetUltralightCard();
 
-                Debug.WriteLine($"Type: {ultralight.UltralightCardType}, Ndef capacity: {ultralight.NdefCapacity}");
+                Debug.WriteLine($"Type: {_ultralight.UltralightCardType}, Ndef capacity: {_ultralight.NdefCapacity}");
 
                 // For debug purposes, you can uncomment
                 if (dump)
                 {
-                    DisplayVersion(ultralight);
+                    DisplayVersion();
                 }
 
                 // Try authentication
                 Debug.WriteLine("Generating authentication key");
-                ultralight.AuthenticationKey = LegoTag.GenerateCardPassword(ultralight.SerialNumber);
-                Debug.WriteLine($"Authentication key: {BitConverter.ToString(ultralight.AuthenticationKey)}");
-                ultralight.Command = UltralightCommand.PasswordAuthentication;
-                var auth = ultralight.RunUltralightCommand();
+                _ultralight.AuthenticationKey = LegoTag.GenerateCardPassword(_ultralight.SerialNumber);
+                _displayInfo.View.Text += $"Authentication key: {BitConverter.ToString(_ultralight.AuthenticationKey)}.\r\n";
+                Application.DoEvents();
+                _ultralight.Command = UltralightCommand.PasswordAuthentication;
+                var auth = _ultralight.RunUltralightCommand();
 
                 // For debug pu^rposes, you can display all page card
                 if (dump)
                 {
-                    ReadAllCard(ultralight);
+                    ReadAllCard();
                 }
 
                 // read page 0x24   
-                if (ReadBlock(ultralight, 0x24))
+                if (ReadBlock(0x24))
                 {
                     for (int i = 0; i < 16; i++)
                     {
-                        Debug.Write($"{ultralight.Data![i]:X2} ");
+                        Debug.Write($"{_ultralight.Data![i]:X2} ");
                     }
 
                     // If page 0x26 == 00 01 00 00 we have a vehicle
-                    if (LegoTag.IsVehicle(ultralight.Data.AsSpan(8, 4).ToArray()))
+                    if (LegoTag.IsVehicle(_ultralight.Data.AsSpan(8, 4).ToArray()))
                     {
-                        Console.WriteLine("Found a vehicle.");
+                        _displayInfo.View.Text += "Found a vehicle.\r\n";
                         // The 2 first one used
-                        var id = LegoTag.GetVehicleId(ultralight.Data);
-                        Console.Write($"vehicle ID: {id} ");
+                        var id = LegoTag.GetVehicleId(_ultralight.Data);
+                        _displayInfo.View.Text += $"  vehicle ID: {id}: ";                        
                         Vehicle vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == id);
                         if (vec is not null)
                         {
-                            Console.WriteLine($"{vec.Id}: {vec.Name}, {vec.Rebuild} build - {vec.World}");
-                            Console.Write("Capabilities: ");
+                            _displayInfo.View.Text += $"{vec.Name}, {vec.Rebuild} build - {vec.World}.\r\n";
+                            _displayInfo.View.Text += "  Capabilities: ";
                             for (int i = 0; i < vec.Abilities.Count; i++)
                             {
-                                Console.Write($"{vec.Abilities[i]}{(i != vec.Abilities.Count - 1 ? ", " : "")}");
+                                _displayInfo.View.Text += $"{vec.Abilities[i]}{(i != vec.Abilities.Count - 1 ? ", " : "")}";
                             }
 
-                            Console.WriteLine($"");
+                            _displayInfo.View.Text += "\r\n";
+                            Application.DoEvents();
                         }
                         else
                         {
-                            Console.WriteLine("and vehicle does not exist!");
+                            _displayInfo.View.Text += "and vehicle does not exist!\r\n";
+                            Application.DoEvents();
                         }
                     }
                     else
                     {
-                        Console.WriteLine("Found a character.");
-                        var id = LegoTag.GetCharacterId(ultralight.SerialNumber, ultralight.Data.AsSpan(0, 8).ToArray());
-                        Console.Write($"Character ID: {id} ");
+                        _displayInfo.View.Text += "Found a character.\r\n";
+                        var id = LegoTag.GetCharacterId(_ultralight.SerialNumber, _ultralight.Data.AsSpan(0, 8).ToArray());
+                        _displayInfo.View.Text += $"  Character ID: {id}: ";
                         Character car = Character.Characters.FirstOrDefault(m => m.Id == id);
                         if (car is not null)
                         {
-                            Console.WriteLine($"{car.Id}: {car.Name} - {car.World}");
+                            _displayInfo.View.Text += $"{car.Name} - {car.World}.\r\n";
+                            _displayInfo.View.Text += "  Capabilities: ";
                             for (int i = 0; i < car.Abilities.Count; i++)
                             {
-                                Console.Write($"{car.Abilities[i]}{(i != car.Abilities.Count - 1 ? ", " : "")}");
+                                _displayInfo.View.Text += $"{car.Abilities[i]}{(i != car.Abilities.Count - 1 ? ", " : "")}";
                             }
 
-                            Console.WriteLine($"");
+                            _displayInfo.View.Text += "\r\n";
+                            Application.DoEvents();
                         }
                         else
                         {
-                            Console.WriteLine("and character does not exist!");
+                            _displayInfo.View.Text += "and character does not exist!\r\n";
+                            Application.DoEvents();
                         }
                     }
                 }
                 else
                 {
                     _currentCardUid = new byte[0];
-                    Console.WriteLine("Can't read the tag, place it again or another one");
+                    _displayInfo.View.Text += "Can't read the tag, place it again or another one.\r\n";
                 }
             }
             catch (Exception)
             {
                 _currentCardUid = new byte[0];
-                Console.WriteLine("Can't read the tag, place it again or another one");
+                _displayInfo.View.Text += "Can't read the tag, place it again or another one.\r\n";
             }
+
+            Application.DoEvents();
+            while (!stopped)
+            {
+                Thread.Sleep(100);
+            }
+
+            Application.Shutdown();
         }
 
-        static public void ReadAllCard(UltralightCard ultralight)
+        static public void ReadAllCard()
         {
-            Console.WriteLine("Dump of all the card:");
-            for (int block = 0; block < ultralight.NumberBlocks; block++)
+            _displayInfo.View.Text += "Dump of all the card:\r\n";
+            Application.DoEvents();
+            for (int block = 0; block < _ultralight.NumberBlocks; block++)
             {
-                if (ReadBlock(ultralight, (byte)block))
+                if (ReadBlock((byte)block))
                 {
-                    Console.Write($"  Block: {ultralight.BlockNumber:X2} - ");
+                    _displayInfo.View.Text += $"  Block: {_ultralight.BlockNumber:X2} - ";
                     for (int i = 0; i < 4; i++)
                     {
-                        Console.Write($"{ultralight.Data![i]:X2} ");
+                        _displayInfo.View.Text += $"{_ultralight.Data![i]:X2} ";
                     }
 
-                    var isReadOnly = ultralight.IsPageReadOnly(ultralight.BlockNumber);
-                    Console.Write($"- Read only: {isReadOnly} ");
+                    var isReadOnly = _ultralight.IsPageReadOnly(_ultralight.BlockNumber);
+                    _displayInfo.View.Text += $"- Read only: {isReadOnly} ";
 
-                    Console.WriteLine();
+                    _displayInfo.View.Text += "\r\n";                    
                 }
                 else
                 {
-                    Console.WriteLine("Can't read card");
-                    //break;
+                    _displayInfo.View.Text += "Can't read card\r\n";
                 }
+
+                Application.DoEvents();
             }
         }
 
-        static public void DisplayVersion(UltralightCard ultralight)
+        static public void DisplayVersion()
         {
-            var version = ultralight.GetVersion();
+            var version = _ultralight.GetVersion();
             if ((version != null) && (version.Length > 0))
             {
-                Console.WriteLine("Get Version details: ");
+                _displayInfo.View.Text += "Get Version details: ";
                 for (int i = 0; i < version.Length; i++)
                 {
-                    Console.Write($"{version[i]:X2} ");
+                    _displayInfo.View.Text += $"{version[i]:X2} ";
                 }
 
-                Console.WriteLine();
+                _displayInfo.View.Text += "\r\n";
             }
             else
             {
-                Console.WriteLine("Can't read the version.");
+                _displayInfo.View.Text += "Can't read the version.\r\n";
             }
+
+            Application.DoEvents();
         }
 
-        static private bool WriteAndCheck(UltralightCard ultralight, byte block, byte[] data, int maxRetries = 3)
+        static private bool WriteAndCheck(byte block, byte[] data, int maxRetries = 3)
         {
             int retry = 0;
         RetryWrite:
-            if (ultralight.IsPageReadOnly(block))
+            if (_ultralight.IsPageReadOnly(block))
             {
-                Console.WriteLine($"Block 0x{block:X2} is readonly.");
+                _displayInfo.View.Text += $"Block 0x{block:X2} is readonly.\r\n";
                 return false;
             }
 
-            if (!WriteBlock(ultralight, block, data))
+            if (!WriteBlock(block, data))
             {
                 if (retry++ < maxRetries)
                 {
+                    // Try to auth
+                    Auth();
                     Thread.Sleep(100);
                     goto RetryWrite;
                 }
 
-                Console.WriteLine($"Failed to write block 0x{block:X2} after {maxRetries}.");
+                _displayInfo.View.Text += $"Failed to write block 0x{block:X2} after {maxRetries}.\r\n";
                 return false;
             }
             else
             {
+                // Time for the data to be properly written
+                Thread.Sleep(100);
+                retry = 0;
             RetryRead:
-                ultralight.Data = new byte[0];
+                _ultralight.Data = new byte[0];
                 // Check it's correct
-                if (!ReadBlock(ultralight, block))
+                if (!ReadBlock(block))
                 {
                     if (retry++ < maxRetries)
                     {
+                        // Try to auth
+                        Auth();
                         Thread.Sleep(100);
                         goto RetryRead;
                     }
 
-                    Console.WriteLine($"Can't check block 0x{block:X2}.");
+                    _displayInfo.View.Text += $"Can't check block 0x{block:X2}.\r\n";
                     return false;
                 }
 
-                if (!data.SequenceEqual(ultralight.Data))
+                if (!data.SequenceEqual(_ultralight.Data.AsSpan(0, 4).ToArray()))
                 {
                     if (retry++ < maxRetries)
                     {
@@ -376,7 +464,7 @@ namespace LegoDimensionsReadNfc
                         goto RetryWrite;
                     }
 
-                    Console.WriteLine($"Can't validate block 0x{block:X2} even after {maxRetries} retries.");
+                    _displayInfo.View.Text += $"Can't validate block 0x{block:X2} even after {maxRetries} retries.\r\n";
                     return false;
                 }
             }
@@ -384,19 +472,28 @@ namespace LegoDimensionsReadNfc
             return true;
         }
 
-        static private bool WriteBlock(UltralightCard ultralight, byte block, byte[] data)
+        static private bool Auth()
         {
-            ultralight.Data = data;
-            ultralight.BlockNumber = block;
-            ultralight.Command = UltralightCommand.Write4Bytes;
-            return ultralight.RunUltralightCommand() >= 0;
+            var passwd = LegoTag.GenerateCardPassword(_ultralight.SerialNumber);
+            _ultralight.Data = passwd;
+            _ultralight.Command = UltralightCommand.PasswordAuthentication;
+            var res = _ultralight.RunUltralightCommand();
+            return res >= 0;
         }
 
-        static private bool ReadBlock(UltralightCard ultralight, byte block)
+        static private bool WriteBlock(byte block, byte[] data)
         {
-            ultralight.BlockNumber = (byte)block; // Safe cast, can't be more than 255
-            ultralight.Command = UltralightCommand.Read16Bytes;
-            var res = ultralight.RunUltralightCommand();
+            _ultralight.Data = data;
+            _ultralight.BlockNumber = block;
+            _ultralight.Command = UltralightCommand.Write4Bytes;
+            return _ultralight.RunUltralightCommand() >= 0;
+        }
+
+        static private bool ReadBlock(byte block)
+        {
+            _ultralight.BlockNumber = (byte)block; // Safe cast, can't be more than 255
+            _ultralight.Command = UltralightCommand.Read16Bytes;
+            var res = _ultralight.RunUltralightCommand();
             return res >= 0;
         }
 
@@ -443,9 +540,9 @@ namespace LegoDimensionsReadNfc
 
                 _currentCardUid = decrypted.NfcId;
 
-                var ultralight = new UltralightCard(_pn532, 0);
-                ultralight.SerialNumber = decrypted.NfcId;
-                return ultralight;
+                _ultralight = new UltralightCard(_pn532, 0);
+                _ultralight.SerialNumber = decrypted.NfcId;
+                return _ultralight;
             }
 
             return null;
