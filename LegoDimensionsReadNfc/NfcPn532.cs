@@ -98,6 +98,7 @@ namespace LegoDimensionsReadNfc
             {
                 Thread.Sleep(100);
             }
+        }
 
             Application.Shutdown();
         }
@@ -543,6 +544,127 @@ namespace LegoDimensionsReadNfc
                 _ultralight = new UltralightCard(_pn532, 0);
                 _ultralight.SerialNumber = decrypted.NfcId;
                 return _ultralight;
+            }
+
+            return null;
+        }
+
+        static private bool WriteAndCheck(UltralightCard ultralight, byte block, byte[] data, int maxRetries = 3)
+        {
+            int retry = 0;
+        RetryWrite:
+            if (ultralight.IsPageReadOnly(block))
+            {
+                Console.WriteLine($"Block 0x{block:X2} is readonly.");
+                return false;
+            }
+
+            if (!WriteBlock(ultralight, block, data))
+            {
+                if (retry++ < maxRetries)
+                {
+                    Thread.Sleep(100);
+                    goto RetryWrite;
+                }
+
+                Console.WriteLine($"Failed to write block 0x{block:X2} after {maxRetries}.");
+                return false;
+            }
+            else
+            {
+            RetryRead:
+                ultralight.Data = new byte[0];
+                // Check it's correct
+                if (!ReadBlock(ultralight, block))
+                {
+                    if (retry++ < maxRetries)
+                    {
+                        Thread.Sleep(100);
+                        goto RetryRead;
+                    }
+
+                    Console.WriteLine($"Can't check block 0x{block:X2}.");
+                    return false;
+                }
+
+                if (!data.SequenceEqual(ultralight.Data))
+                {
+                    if (retry++ < maxRetries)
+                    {
+                        Thread.Sleep(100);
+                        goto RetryWrite;
+                    }
+
+                    Console.WriteLine($"Can't validate block 0x{block:X2} even after {maxRetries} retries.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        static private bool WriteBlock(UltralightCard ultralight, byte block, byte[] data)
+        {
+            ultralight.Data = data;
+            ultralight.BlockNumber = block;
+            ultralight.Command = UltralightCommand.Write4Bytes;
+            return ultralight.RunUltralightCommand() >= 0;
+        }
+
+        static private bool ReadBlock(UltralightCard ultralight, byte block)
+        {
+            ultralight.BlockNumber = (byte)block; // Safe cast, can't be more than 255
+            ultralight.Command = UltralightCommand.Read16Bytes;
+            var res = ultralight.RunUltralightCommand();
+            return res >= 0;
+        }
+
+        static private UltralightCard GetUltralightCard()
+        {
+        CheckCard:
+            byte[] retData = null;
+            while ((!Console.KeyAvailable))
+            {
+                retData = _pn532.ListPassiveTarget(MaxTarget.One, TargetBaudRate.B106kbpsTypeA);
+                if (retData is object)
+                {
+                    break;
+                }
+
+                // Give time to PN532 to process
+                Thread.Sleep(200);
+                _currentCardUid = new byte[0];
+            }
+
+            // Key pressed, exit
+            if (retData is null)
+            {
+                return null;
+            }
+
+            // You need to remove the first element at it's the number of tags read
+            // In, this case we will assume we are reading only 1 tag at a time
+            var decrypted = _pn532.TryDecode106kbpsTypeA(retData.AsSpan().Slice(1));
+
+            if (decrypted is object)
+            {
+                Debug.WriteLine($"Tg: {decrypted.TargetNumber}, ATQA: {decrypted.Atqa} SAK: {decrypted.Sak}, NFCID: {BitConverter.ToString(decrypted.NfcId)}");
+                if (decrypted.Ats is object)
+                {
+                    Debug.WriteLine($", ATS: {BitConverter.ToString(decrypted.Ats)}");
+                }
+
+                if (_currentCardUid.SequenceEqual(decrypted.NfcId))
+                {
+                    Thread.Sleep(1000);
+                    goto CheckCard;
+                }
+
+                _currentCardUid = decrypted.NfcId;
+
+                var ultralight = new UltralightCard(_pn532, 0);
+                ultralight.SerialNumber = decrypted.NfcId;
+                return ultralight;
             }
 
             return null;
