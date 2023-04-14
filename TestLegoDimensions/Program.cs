@@ -8,6 +8,7 @@ using LegoDimensions.Tag;
 List<LegoTagEventArgs> tags = new List<LegoTagEventArgs>();
 
 var portal = LegoPortal.GetFirstPortal();
+Console.WriteLine($"Portal found, serail number: {BitConverter.ToString(portal.SerialNumber)}");
 // If you don't want to get the tag details on the event, you can disable it
 //portal.GetTagDetails = false;
 portal.LegoTagEvent += PortalLegoTagEvent;

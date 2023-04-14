@@ -534,11 +534,23 @@ This is the first thing to do to make sure you are up and running.
 ```text
 // Message sent
 55-0F-B0-01-28-63-29-20-4C-45-47-4F-20-32-30-31-34-F7-00-00-00-00-00-00-00-00-00-00-00-00-00-00
-// Answer from the portal
+// Answer from different the portals:
 55-19-01-00-2F-02-01-02-02-04-02-F5-00-19-81-54-D3-A3-44-AE-A5-88-E8-0B-02-60-12-8A-00-00-00-00
+55-19-01-00-2F-02-01-02-02-04-02-F5-00-19-86-54-E9-BA-1A-AE-A5-88-E9-15-FF-A0-0A-D2-00-00-00-00
+55-19-01-00-2F-02-01-02-02-04-02-F5-00-19-8E-54-6F-87-56-AE-4D-10-25-0D-01-00-01-26-00-00-00-00
+55-19-01-00-2F-02-01-02-02-04-02-F5-00-19-81-54-E5-A7-D7-AE-A5-A4-25-04-00-30-3C-7D-00-00-00-00
 ```
 
 The answer from the portal contains configuration information and most likely serial numbers.
+
+So we can consider that this part is the serial number as it seems changing:
+
+```text
+19-81-54-D3-A3-44-AE-A5-88-E8-0B-02-60-12
+19-86-54-E9-BA-1A-AE-A5-88-E9-15-FF-A0-0A
+19-8E-54-6F-87-56-AE-4D-10-25-0D-01-00-01
+19-81-54-E5-A7-D7-AE-A5-A4-25-04-00-30-3C
+```
 
 ### Seeding command 0xB1
 
