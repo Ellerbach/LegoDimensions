@@ -111,6 +111,8 @@ namespace LegoDimensions
         /// </summary>
         public IUsbDevice UsbDevice => _portal;
 
+        public byte[] SerialNumber { get; internal set; }
+
         /// <summary>
         /// Creates a new instance of a Lego Dimensions Portal.
         /// </summary>
@@ -154,7 +156,19 @@ namespace LegoDimensions
             Message message = new Message(MessageCommand.Wake);
             message.AddPayload("(c) LEGO 2014");
             _messageId = 0;
-            SendMessage(message);
+            var getSerial = new ManualResetEvent(false);
+            SerialNumber = new byte[0];
+            var commandId = new CommandId(SendMessage(message), MessageCommand.Wake, getSerial);
+            _commandId.Add(commandId);
+
+            getSerial.WaitOne(ReceiveTimeout, true);
+
+            if (commandId.Result != null)
+            {
+                SerialNumber = (byte[])commandId.Result;
+            }
+
+            _commandId.Remove(commandId);
             // TODO: investigate seeding
             //message = new Message(MessageCommand.Seed);
             //message.AddPayload(new byte[] { 0xaa, 0x6F, 0xC8, 0xCD, 0x21, 0x1E, 0xF8, 0xCE });
@@ -558,6 +572,11 @@ namespace LegoDimensions
                             else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Write)
                             {
                                 cmdId.Result = message.Payload[0] == 0;
+                                cmdId.ManualResetEvent?.Set();
+                            }
+                            else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Wake)
+                            {
+                                cmdId.Result = message.Payload[10..];
                                 cmdId.ManualResetEvent?.Set();
                             }
                             else if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Challenge)
