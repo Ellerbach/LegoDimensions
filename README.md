@@ -324,6 +324,8 @@ If your tag is fully new, then you can just write whatever you want. You have th
 
 This application is a wizard, so just follow the steps! You can erase a card, write a card, read a card and fully dump a card. This application is a console application but has a nice UX and UI!
 
+This application requires a PN532 to work.
+
 #### If you want to write your own code to writ tags
 
 In short, the important steps are the following:
