@@ -12,51 +12,65 @@ using System.IO.Ports;
 using System.Xml.Linq;
 using Terminal.Gui;
 
+bool alreadySetup = false;
+
+StartAgain:
 Application.Init();
 
 // Setup wizar
 var wizard = new Wizard($"Setup Wizard");
 
-// Add 1st step
-var firstStep = new Wizard.WizardStep("Setup NFC reader");
-wizard.AddStep(firstStep);
-firstStep.NextButtonText = "Continue!";
-firstStep.HelpText = "This wizard will help you to setup the NFC reader.";
-
-// Add 2nd step
-var secondStep = new Wizard.WizardStep("Reader setup");
-wizard.AddStep(secondStep);
-secondStep.HelpText = "Please select the serial port of the PN532 NFC reader.";
-var lbl = new Label("Ports:") { AutoSize = true };
-secondStep.Add(lbl);
-secondStep.NextButtonText = "Continue!";
-
-var names = SerialPort.GetPortNames();
-ustring[] comPortsU = new ustring[names.Length];
-for (int i = 0; i < names.Length; i++)
+if (!alreadySetup)
 {
-    comPortsU[i] = names[i];
-}
+    // Add 1st step
+    var firstStep = new Wizard.WizardStep("Setup NFC reader");
+    wizard.AddStep(firstStep);
+    firstStep.NextButtonText = "Continue!";
+    firstStep.HelpText = "This wizard will help you to setup the NFC reader.";
 
-var comPortNames = new RadioGroup(comPortsU) { X = Pos.Right(lbl) + 1, Width = Dim.Fill() - 1 };
-secondStep.Add(comPortNames);
+    // Add 2nd step
+    var secondStep = new Wizard.WizardStep("Reader setup");
+    wizard.AddStep(secondStep);
+    secondStep.HelpText = "Please select the serial port of the PN532 NFC reader.";
+    var lbl = new Label("Ports:") { AutoSize = true };
+    secondStep.Add(lbl);
+    secondStep.NextButtonText = "Continue!";
+
+    var names = SerialPort.GetPortNames();
+    ustring[] comPortsU = new ustring[names.Length];
+    for (int i = 0; i < names.Length; i++)
+    {
+        comPortsU[i] = names[i];
+    }
+
+    var comPortNames = new RadioGroup(comPortsU) { X = Pos.Right(lbl) + 1, Width = Dim.Fill() - 1 };
+    secondStep.Add(comPortNames);
+
+    wizard.Finished += (args) =>
+    {
+        // MessageBox.Query("Wizard", $"Finished. The selected port is '{names[comPortNames.SelectedItem]}' and action '{actionChoices[actionChoice.SelectedItem]}'", "Ok");
+        NfcPn532.OpenComPort(names[comPortNames.SelectedItem]);
+        Application.RequestStop();
+        alreadySetup = true;
+    };
+}
+else
+{
+    wizard.Finished += (args) =>
+    {
+        Application.RequestStop();
+    };
+}
 
 // Ask what want to be done
 var thirdStep = new Wizard.WizardStep("Action step");
 wizard.AddStep(thirdStep);
 thirdStep.HelpText = "What do you want to do?";
-ustring[] actionChoices = new ustring[] { "Erase tag", "Read tag", "Read all card", "Write tag" };
+ustring[] actionChoices = new ustring[] { "_Erase tag", "_Read tag", "Read _all card", "_Write tag", "_Quit" };
 var lblChoices = new Label("What do you want to execute?") { AutoSize = true };
-thirdStep.Add(lbl);
+thirdStep.Add(lblChoices);
 var actionChoice = new RadioGroup(actionChoices) { X = Pos.Right(lblChoices) + 1, Width = Dim.Fill() - 1 };
 thirdStep.Add(actionChoice);
-
-wizard.Finished += (args) =>
-{
-    // MessageBox.Query("Wizard", $"Finished. The selected port is '{names[comPortNames.SelectedItem]}' and action '{actionChoices[actionChoice.SelectedItem]}'", "Ok");
-    NfcPn532.OpenComPort(names[comPortNames.SelectedItem]);
-    Application.RequestStop();
-};
 
 Application.Top.Add(wizard);
 Application.Run();
@@ -68,14 +82,20 @@ switch (actionChoice.SelectedItem)
     case 0:
         Console.WriteLine("Place an empty tag on the reader to erase it.");
         NfcPn532.ErraseTag();
+        WaitForKey();
+        goto StartAgain;
         break;
     case 1:
         Console.WriteLine("Place a tag on the reader to read it. Press any key to stop.");
         NfcPn532.ReadLegoTag(false);
+        WaitForKey();
+        goto StartAgain;
         break;
     case 2:
         Console.WriteLine("Place a tag on the reader to read it. Press any key to stop.");
         NfcPn532.ReadLegoTag(true);
+        WaitForKey();
+        goto StartAgain;
         break;
     case 3:
         Application.Init();
@@ -112,12 +132,12 @@ switch (actionChoice.SelectedItem)
         List<string> details = new List<string>();
         foreach (var car in Character.Characters)
         {
-            details.Add($"{car.Id}: {car.Name}");
+            details.Add($"{car.Id}: {car.Name}-{car.World}");
         }
 
         foreach (var vec in Vehicle.Vehicles)
         {
-            details.Add($"{vec.Id}: {vec.Name}");
+            details.Add($"{vec.Id}: {vec.Name}-{vec.World}");
         }
 
         list.SetSource(details);
@@ -148,6 +168,18 @@ switch (actionChoice.SelectedItem)
             Console.WriteLine("Writing tag done.");
         }
 
+        WaitForKey();
+        goto StartAgain;
         break;
 }
 
+void WaitForKey()
+{
+    Console.WriteLine("Press a key to continue...");
+    while (!Console.KeyAvailable)
+    {
+        Thread.Sleep(200);
+    }
+    Console.ReadKey();
+
+}
