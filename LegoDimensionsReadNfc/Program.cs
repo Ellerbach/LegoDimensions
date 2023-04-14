@@ -80,23 +80,17 @@ Application.Shutdown();
 switch (actionChoice.SelectedItem)
 {
     case 0:
-        Console.WriteLine("Place an empty tag on the reader to erase it.");
         NfcPn532.ErraseTag();
-        WaitForKey();
         goto StartAgain;
-        break;
+
     case 1:
-        Console.WriteLine("Place a tag on the reader to read it. Press any key to stop.");
         NfcPn532.ReadLegoTag(false);
-        WaitForKey();
         goto StartAgain;
-        break;
+
     case 2:
-        Console.WriteLine("Place a tag on the reader to read it. Press any key to stop.");
         NfcPn532.ReadLegoTag(true);
-        WaitForKey();
         goto StartAgain;
-        break;
+
     case 3:
         Application.Init();
         bool okpressed = false;
@@ -150,7 +144,6 @@ switch (actionChoice.SelectedItem)
         Application.Shutdown();
         if (okpressed)
         {
-            Console.WriteLine("Place an empty tag on the reader.");
             ushort id = 0;
             if (entry.Text.IsEmpty)
             {
@@ -165,21 +158,7 @@ switch (actionChoice.SelectedItem)
             }
 
             NfcPn532.WriteEmptyTag(id, id < 1000);
-            Console.WriteLine("Writing tag done.");
         }
 
-        WaitForKey();
         goto StartAgain;
-        break;
-}
-
-void WaitForKey()
-{
-    Console.WriteLine("Press a key to continue...");
-    while (!Console.KeyAvailable)
-    {
-        Thread.Sleep(200);
-    }
-    Console.ReadKey();
-
 }

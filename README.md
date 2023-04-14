@@ -316,11 +316,17 @@ Found a vehicle.
 vehicle ID: 11 The Annihilator - The Lego Movie
 ```
 
-### Writing data on a new NTAG213 card
+### Writing data on a new NTAG213
 
 The regular Lego Tag are protected and except the vehicle tag that can be written at any time, you can't change the character ID of a normal Lego tag. But you can write all this on a brand new tag.
 
-If your tag is fully new, then you can just write whatever you want. You have the code in the [LegoDimensionsReadNfc sample](https://github.com/Ellerbach/LegoDimensions/tree/main/LegoDimensionsReadNfc).
+If your tag is fully new, then you can just write whatever you want. You have the code in the [LegoDimensionsReadNfc application](https://github.com/Ellerbach/LegoDimensions/tree/main/LegoDimensionsReadNfc). This application is available in the Releases both for Windows and arm 32 (so you can run it on a Raspberry Pi).
+
+This application is a wizard, so just follow the steps! You can erase a card, write a card, read a card and fully dump a card. This application is a console application but has a nice UX and UI!
+
+This application requires a PN532 to work.
+
+#### If you want to write your own code to writ tags
 
 In short, the important steps are the following:
 
