@@ -82,15 +82,15 @@ switch (actionChoice.SelectedItem)
     case 0:
         NfcPn532.ErraseTag();
         goto StartAgain;
-        break;
+
     case 1:
         NfcPn532.ReadLegoTag(false);
         goto StartAgain;
-        break;
+
     case 2:
         NfcPn532.ReadLegoTag(true);
         goto StartAgain;
-        break;
+
     case 3:
         Application.Init();
         bool okpressed = false;
@@ -157,9 +157,8 @@ switch (actionChoice.SelectedItem)
                 id = ushort.Parse(entry.Text.ToString());
             }
 
-            NfcPn532.WriteEmptyTag(id, id < 1000);            
+            NfcPn532.WriteEmptyTag(id, id < 1000);
         }
 
         goto StartAgain;
-        break;
 }

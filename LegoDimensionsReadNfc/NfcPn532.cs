@@ -41,7 +41,7 @@ namespace LegoDimensionsReadNfc
                 stopped = true; ;
                 Application.RequestStop();
             };
-            
+
             (new Thread(() => Application.Run(_displayInfo))).Start();
 
         Reselect:
@@ -94,11 +94,10 @@ namespace LegoDimensionsReadNfc
                 _displayInfo.View.Text += "Card may not have been erased properly.\r\n";
             }
 
-            while(!stopped)
+            while (!stopped)
             {
                 Thread.Sleep(100);
             }
-        }
 
             Application.Shutdown();
         }
@@ -205,7 +204,7 @@ namespace LegoDimensionsReadNfc
 
                 if (!WriteAndCheck(0x24, car.AsSpan(0, 4).ToArray()))
                 {
-                    _displayInfo.View.Text +=  "Most likely failed to write character as can't check block 0x24.\r\n";
+                    _displayInfo.View.Text += "Most likely failed to write character as can't check block 0x24.\r\n";
                 }
 
                 if (!WriteAndCheck(0x25, car.AsSpan(4, 4).ToArray()))
@@ -245,7 +244,7 @@ namespace LegoDimensionsReadNfc
             bool stopped = false;
 
             Application.Init();
-             _displayInfo = new DisplayInfo();
+            _displayInfo = new DisplayInfo();
             _displayInfo.Label.Text = "Write Tag: place an empty tag on the reader to write it.";
             _displayInfo.View.Text = string.Empty;
             _displayInfo.ButtonClose.Clicked += () =>
@@ -255,7 +254,7 @@ namespace LegoDimensionsReadNfc
             };
 
             (new Thread(() => Application.Run(_displayInfo))).Start();
-            
+
             try
             {
                 _currentCardUid = new byte[0];
@@ -297,7 +296,7 @@ namespace LegoDimensionsReadNfc
                         _displayInfo.View.Text += "Found a vehicle.\r\n";
                         // The 2 first one used
                         var id = LegoTag.GetVehicleId(_ultralight.Data);
-                        _displayInfo.View.Text += $"  vehicle ID: {id}: ";                        
+                        _displayInfo.View.Text += $"  vehicle ID: {id}: ";
                         Vehicle vec = Vehicle.Vehicles.FirstOrDefault(m => m.Id == id);
                         if (vec is not null)
                         {
@@ -380,7 +379,7 @@ namespace LegoDimensionsReadNfc
                     var isReadOnly = _ultralight.IsPageReadOnly(_ultralight.BlockNumber);
                     _displayInfo.View.Text += $"- Read only: {isReadOnly} ";
 
-                    _displayInfo.View.Text += "\r\n";                    
+                    _displayInfo.View.Text += "\r\n";
                 }
                 else
                 {
@@ -617,57 +616,6 @@ namespace LegoDimensionsReadNfc
             ultralight.Command = UltralightCommand.Read16Bytes;
             var res = ultralight.RunUltralightCommand();
             return res >= 0;
-        }
-
-        static private UltralightCard GetUltralightCard()
-        {
-        CheckCard:
-            byte[] retData = null;
-            while ((!Console.KeyAvailable))
-            {
-                retData = _pn532.ListPassiveTarget(MaxTarget.One, TargetBaudRate.B106kbpsTypeA);
-                if (retData is object)
-                {
-                    break;
-                }
-
-                // Give time to PN532 to process
-                Thread.Sleep(200);
-                _currentCardUid = new byte[0];
-            }
-
-            // Key pressed, exit
-            if (retData is null)
-            {
-                return null;
-            }
-
-            // You need to remove the first element at it's the number of tags read
-            // In, this case we will assume we are reading only 1 tag at a time
-            var decrypted = _pn532.TryDecode106kbpsTypeA(retData.AsSpan().Slice(1));
-
-            if (decrypted is object)
-            {
-                Debug.WriteLine($"Tg: {decrypted.TargetNumber}, ATQA: {decrypted.Atqa} SAK: {decrypted.Sak}, NFCID: {BitConverter.ToString(decrypted.NfcId)}");
-                if (decrypted.Ats is object)
-                {
-                    Debug.WriteLine($", ATS: {BitConverter.ToString(decrypted.Ats)}");
-                }
-
-                if (_currentCardUid.SequenceEqual(decrypted.NfcId))
-                {
-                    Thread.Sleep(1000);
-                    goto CheckCard;
-                }
-
-                _currentCardUid = decrypted.NfcId;
-
-                var ultralight = new UltralightCard(_pn532, 0);
-                ultralight.SerialNumber = decrypted.NfcId;
-                return ultralight;
-            }
-
-            return null;
         }
     }
 }
