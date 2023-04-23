@@ -94,6 +94,8 @@ namespace LegoDimensionsReadNfc
                 _displayInfo.View.Text += "Card may not have been erased properly.\r\n";
             }
 
+            Application.DoEvents();
+
             while (!stopped)
             {
                 Thread.Sleep(100);
@@ -231,6 +233,8 @@ namespace LegoDimensionsReadNfc
 
             _displayInfo.View.Text += "Setup for the new card done.\r\n";
 
+            Application.DoEvents();
+
             while (!stopped)
             {
                 Thread.Sleep(100);
@@ -253,7 +257,7 @@ namespace LegoDimensionsReadNfc
                 Application.RequestStop();
             };
 
-            (new Thread(() => Application.Run(_displayInfo))).Start();
+            (new Thread(() => Application.Run(_displayInfo))).Start();            
 
             try
             {
