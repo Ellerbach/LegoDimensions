@@ -63,7 +63,7 @@ namespace LegoDimensions.Tag
         /// The list of all knowns vehicles.
         /// </summary>
         public static readonly List<Vehicle> Vehicles = new List<Vehicle>() {
-            new Vehicle(0000, "Empty tag"             , "Unknown", new List<string>() { "" }),
+            new Vehicle(0000, "Empty Vehicle Tag"             , "Unknown", new List<string>() { "" }),
 
             new Vehicle(1000, "Police Car"             , "The Lego Movie", new List<string>() { "Accelerator Switches","Tow Bar" }),
             new Vehicle(1001, "Aerial Squad Car"       , "The Lego Movie", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Accelerator Switches","Tow Bar" }),
@@ -115,7 +115,7 @@ namespace LegoDimensions.Tag
 
             new Vehicle(1036, "Winged Monkey"          , "Wizard of Oz", new List<string>() { "" }),
             new Vehicle(1037, "Battle Monkey"          , "Wizard of Oz", new List<string>() { "Special Attack","Silver LEGO Blowup","Flying" }),
-            new Vehicle(1038, "Commander Monkey"       , "Wizard of Oz", new List<string>() { "Flying","Special Weapon,Sonar Smash","Special Attack","Silver LEGO Blowup" }),
+            new Vehicle(1038, "Commander Monkey"       , "Wizard of Oz", new List<string>() { "Flying","Special Weapon","Sonar Smash","Special Attack","Silver LEGO Blowup" }),
 
             new Vehicle(1039, "Axe Chariot"            , "Lord of the Rings", new List<string>() { "Accelerator Switches","Tow Bar" }),
             new Vehicle(1040, "Axe Hurler"             , "Lord of the Rings", new List<string>() { "Accelerator Switches","Special Attack","Tow Bar" }),
@@ -159,15 +159,15 @@ namespace LegoDimensions.Tag
 
             new Vehicle(1069, "Boulder Bomber"         , "Lego Ninjago", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks" }),
             new Vehicle(1070, "Boulder Blaster"        , "Lego Ninjago", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Silver LEGO Blowup" }),
-            new Vehicle(1071, "Cyclone Jet"            , "Lego Ninjago", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Special Attack,Silver LEGO Blowup" }),
+            new Vehicle(1071, "Cyclone Jet"            , "Lego Ninjago", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Special Attack","Silver LEGO Blowup" }),
 
             new Vehicle(1072, "Storm Fighter"          , "Lego Ninjago", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks" }),
             new Vehicle(1073, "Lightning Jet"          , "Lego Ninjago", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Gold LEGO Blowup","Electricity" }),
             new Vehicle(1074, "Electro-Shooter"        , "Lego Ninjago", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Gold LEGO Blowup","Electricity","Special Attack" }),
 
             new Vehicle(1075, "Blade Bike"             , "Lego Ninjago", new List<string>() { "Accelerator Switches" }),
-            new Vehicle(1076, "Flying Fire Bike"       , "Lego Ninjago", new List<string>() { "Accelerator Switches","Special Attack,Flying","Flight Docks and Flight Cargo Hooks" }),
-            new Vehicle(1077, "Blades of Fire"         , "Lego Ninjago", new List<string>() { "Accelerator Switches","Special Attack,Flying","Flight Docks and Flight Cargo Hooks" }),
+            new Vehicle(1076, "Flying Fire Bike"       , "Lego Ninjago", new List<string>() { "Accelerator Switches","Special Attack","Flying","Flight Docks and Flight Cargo Hooks" }),
+            new Vehicle(1077, "Blades of Fire"         , "Lego Ninjago", new List<string>() { "Accelerator Switches","Special Attack","Flying","Flight Docks and Flight Cargo Hooks" }),
 
             new Vehicle(1078, "Samurai Mech"           , "Lego Ninjago", new List<string>() { "Mech Walker","Super Strength" }),
             new Vehicle(1079, "Samurai Shooter"        , "Lego Ninjago", new List<string>() { "Silver LEGO Blowup","Mech Walker","Super Strength" }),
@@ -218,7 +218,7 @@ namespace LegoDimensions.Tag
             new Vehicle(1113, "Lock 'n' Laser Jet"     , "DC Comics", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Gold LEGO Blowup","Special Attack" }),
 
             new Vehicle(1114, "Hover Pod"              , "DC Comics", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks" }),
-            new Vehicle(1115, "Krypton Striker"        , "DC Comics", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks,Special Weapon" }),
+            new Vehicle(1115, "Krypton Striker"        , "DC Comics", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Special Weapon" }),
             new Vehicle(1116, "Hover Pod 2"            , "DC Comics", new List<string>() { "Flying","Flight Docks and Flight Cargo Hooks","Silver LEGO Blowup","Special Weapon" }),
 
             new Vehicle(1117, "Dalek"                  , "Doctor Who", new List<string>() { "" }),
@@ -231,7 +231,7 @@ namespace LegoDimensions.Tag
 
             new Vehicle(1123, "Ghost Trap"             , "Ghostbusters", new List<string>() { "Ghost Trap" }),
             new Vehicle(1124, "Ghost Stun'n'Trap"      , "Ghostbusters", new List<string>() { "Ghost Trap","Special Attack" }),
-            new Vehicle(1125, "Proton Zapper"          , "Ghostbusters", new List<string>() { "Gold LEGO Blowup","Special Weapon,Ghost Trap","Special Attack" }),
+            new Vehicle(1125, "Proton Zapper"          , "Ghostbusters", new List<string>() { "Gold LEGO Blowup","Special Weapon","Ghost Trap","Special Attack" }),
 
             new Vehicle(1126, "Unknown"                , "Unknown", new List<string>() { "Unknown" }),
             new Vehicle(1127, "Unknown"                , "Unknown", new List<string>() { "Unknown" }),
@@ -282,19 +282,19 @@ namespace LegoDimensions.Tag
 
             new Vehicle(1161, "G-61555 Spy Hunter"     , "Midway Arcade", new List<string>() { "Accelerator Switches","Tow Bar" }),
             new Vehicle(1162, "The Interdiver"         , "Midway Arcade", new List<string>() { "Sail","Silver LEGO Blowup","Accelerator Switches","Tow Bar" }),
-            new Vehicle(1163, "Aerial Spyhunter"       , "Midway Arcade", new List<string>() {"Flying","Flight Docks and Flight Cargo Hooks,Gold LEGO Blowup","Sail","Silver LEGO Blowup","Accelerator Switches","Tow Bar"  }),
+            new Vehicle(1163, "Aerial Spyhunter"       , "Midway Arcade", new List<string>() {"Flying","Flight Docks and Flight Cargo Hooks","Gold LEGO Blowup","Sail","Silver LEGO Blowup","Accelerator Switches","Tow Bar"  }),
 
             new Vehicle(1164, "Slime Shooter"          , "Ghostbusters", new List<string>() { "Slime Bolts","Special Attack" }),
             new Vehicle(1165, "Slime Exploder"         , "Ghostbusters", new List<string>() { "Slime Beam","Slime Bolts","Special Attack" }),
             new Vehicle(1166, "Slime Streamer"         , "Ghostbusters", new List<string>() { "Slime Bomb","Silver LEGO Blowup","Slime Beam","Slime Bolts","Special Attack" }),
 
             new Vehicle(1167, "Terror Dog"             , "Ghostbusters", new List<string>() { "Guardian Ability" }),
-            new Vehicle(1168, "Terror Dog Destroyer"   , "Ghostbusters", new List<string>() { "Silver LEGO Blowup,Dig","Guardian Ability" }),
-            new Vehicle(1169, "Soaring Terror Dog"     , "Ghostbusters", new List<string>() { "Flying","Special Weapon","Silver LEGO Blowup,Dig","Guardian Ability" }),
+            new Vehicle(1168, "Terror Dog Destroyer"   , "Ghostbusters", new List<string>() { "Silver LEGO Blowup","Dig","Guardian Ability" }),
+            new Vehicle(1169, "Soaring Terror Dog"     , "Ghostbusters", new List<string>() { "Flying","Special Weapon","Silver LEGO Blowup","Dig","Guardian Ability" }),
 
             new Vehicle(1170, "Tandem War Elefant"     , "Adventure Time", new List<string>() { "Hover","Gold LEGO Blowup","Guardian Ability" }),
             new Vehicle(1171, "Cosmic Squid"           , "Adventure Time", new List<string>() { "Flight Docks and Flight Cargo Hooks","Tow Bar","Water Spray","Hover","Gold LEGO Blowup","Guardian Ability" }),
-            new Vehicle(1172, "Psychic Submarine"      , "Adventure Time", new List<string>() { "Gold LEGO Blowup","Underwater Interactions","Underwater Drone","Flight Docks and Flight Cargo Hooks","Tow Bar,Water Spray","Hover","Guardian Ability" }),
+            new Vehicle(1172, "Psychic Submarine"      , "Adventure Time", new List<string>() { "Gold LEGO Blowup","Underwater Interactions","Underwater Drone","Flight Docks and Flight Cargo Hooks","Tow Bar","Water Spray","Hover","Guardian Ability" }),
 
             new Vehicle(1173, "BMO"                    , "Adventure Time", new List<string>() { "BMO Docks","Illumination","Guardian Ability" }),
             new Vehicle(1174, "DOGMO"                  , "Adventure Time", new List<string>() { "Dig","Illumination","Guardian Ability","BMO Docks" }),
@@ -306,7 +306,7 @@ namespace LegoDimensions.Tag
 
             new Vehicle(1179, "Lumpy Car"              , "Adventure Time", new List<string>() { "Accelerator Switches","Tow Bar","Jump" }),
             new Vehicle(1180, "Lumpy Land Whale"       , "Adventure Time", new List<string>() { "Underwater Drone","Sonar Smash","Underwater Interactions","Accelerator Switches","Tow Bar","Jump" }),
-            new Vehicle(1181, "Lumpy Truck"            , "Adventure Time", new List<string>() { "Rainbow LEGO Objects","Gold LEGO Blowup","Flight Docks and Flight Cargo Hooks","Underwater Drone","Sonar Smash,Underwater Interactions","Accelerator Switches","Tow Bar","Jump" }),
+            new Vehicle(1181, "Lumpy Truck"            , "Adventure Time", new List<string>() { "Rainbow LEGO Objects","Gold LEGO Blowup","Flight Docks and Flight Cargo Hooks","Underwater Drone","Sonar Smash","Underwater Interactions","Accelerator Switches","Tow Bar","Jump" }),
 
             new Vehicle(1182, "Lunatic Amp"            , "Adventure Time", new List<string>() { "Sonar Smash","Super Jump","Dig","Tow Bar" }),
             new Vehicle(1183, "Shadow Scorpion"        , "Adventure Time", new List<string>() { "Flight Docks and Flight Cargo Hooks","Special Attack","Tow Bar","Sonar Smash","Super Jump","Dig" }),
@@ -337,7 +337,7 @@ namespace LegoDimensions.Tag
             new Vehicle(1202, "Stripe's Throne"        , "Gremlins", new List<string>() { "Super Jump","Cursed Red LEGO Objects","Special Attack","Special Weapon","Illumination","Sonar Smash","Gold LEGO Blowup" }),
 
             new Vehicle(1203, "R.C. Car"               , "Gremlins", new List<string>() { "Accelerator Switches","Special Attack","Electricity" }),
-            new Vehicle(1204, "Gadget-o-matic"         , "Gremlins", new List<string>() { "Accelerator Switches","Special Attack,Tow Bar","Electricity" }),
+            new Vehicle(1204, "Gadget-o-matic"         , "Gremlins", new List<string>() { "Accelerator Switches","Special Attack","Tow Bar","Electricity" }),
             new Vehicle(1205, "Scarlet Scorpion"       , "Gremlins", new List<string>() { "Super Jump","Vine Cut","Accelerator Switches","Special Attack","Tow Bar","Electricity" }),
 
             new Vehicle(1206, "Hogward Express"        , "Harry Potter", new List<string>() { "Accelerator Switches","Tow Bar","Sonar Smash" }),
@@ -368,9 +368,9 @@ namespace LegoDimensions.Tag
             new Vehicle(1225, "Goliath Armored Semi"   , "Knight Rider", new List<string>() { "Tow Bar","Super Strength","Electricity","Accelerator Switches","Gold LEGO Blowup" }),
             new Vehicle(1226, "K.I.T.T. Jet"           , "Knight Rider", new List<string>() { "Flight Docks and Flight Cargo Hooks","Gold LEGO Blowup","Silver LEGO Blowup","Tow Bar","Super Strength","Electricity","Accelerator Switches" }),
 
-            new Vehicle(1227, "Unknown"                , "Unknown", new List<string>() { "Flight Docks and Flight Cargo Hooks","Special Attack","Tow Bar" }),
-            new Vehicle(1228, "Unknown"                , "Unknown", new List<string>() { "Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack","Flight Docks and Flight Cargo Hooks","Tow Bar" }),
-            new Vehicle(1229, "Unknown"                , "Unknown", new List<string>() { "Flight Docks and Flight Cargo Hooks","Tow Bar","Drone Mazes","Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack" }),
+            new Vehicle(1227, "Police helicopter"      , "LEGO City: Undercover", new List<string>() { "Flight Docks and Flight Cargo Hooks","Special Attack","Tow Bar" }),
+            new Vehicle(1228, "Unknown"                , "LEGO City: Undercover", new List<string>() { "Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack","Flight Docks and Flight Cargo Hooks","Tow Bar" }),
+            new Vehicle(1229, "Unknown"                , "LEGO City: Undercover", new List<string>() { "Flight Docks and Flight Cargo Hooks","Tow Bar","Drone Mazes","Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack" }),
 
             new Vehicle(1230, "Bionic Steed"           , "The LEGO Batman Movie", new List<string>() { "Super Jump","Special Weapon" }),
             new Vehicle(1231, "Bat Raptor"             , "The LEGO Batman Movie", new List<string>() { "Super Jump","Super Strength","Special Weapon" }),
