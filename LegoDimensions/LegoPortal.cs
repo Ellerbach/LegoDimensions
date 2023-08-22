@@ -471,7 +471,7 @@ namespace LegoDimensions
 
                                 if (legoTag == null)
                                 {
-                                    _presentTags.Add(new PresentTag((Pad)pad, tadType, padIndex));
+                                    _presentTags.Add(new PresentTag((Pad)pad, tadType, padIndex, uuid));
                                     legoTag = new PadTag() { Pad = (Pad)pad, TagIndex = padIndex, Present = present, CardUid = uuid, TagType = tadType };
                                     _padTag.Add(legoTag);
 
@@ -589,7 +589,9 @@ namespace LegoDimensions
                                 _presentTags.Clear();
                                 for (int i = 0; i < message.Payload.Length / 2; i++)
                                 {
-                                    PresentTag presentTag = new PresentTag((Pad)(message.Payload[i * 2] >> 4), (TagType)message.Payload[i * 2 + 1], (byte)(message.Payload[i * 2] & 0xF));
+                                    var index = (byte)(message.Payload[i * 2] & 0xF);
+                                    var uid = _padTag.FirstOrDefault(x => x.TagIndex == index)?.CardUid ?? Array.Empty<byte>();
+                                    PresentTag presentTag = new PresentTag((Pad)(message.Payload[i * 2] >> 4), (TagType)message.Payload[i * 2 + 1], index, uid);
                                     _presentTags.Add(presentTag);
                                 }
 

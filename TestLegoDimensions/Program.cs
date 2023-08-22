@@ -134,7 +134,7 @@ void TestListTags()
     var tagList = portal.ListTags();
     foreach (var tag in tagList)
     {
-        Console.WriteLine($"Pad: {tag.Pad}, Index: {tag.Index}, Type: {tag.TagType}");
+        Console.WriteLine($"Pad: {tag.Pad}, Index: {tag.Index}, UID: {BitConverter.ToString(tag.CardUid)}, Type: {tag.TagType}");
     }
 }
 

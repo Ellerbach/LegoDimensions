@@ -16,11 +16,13 @@ namespace LegoDimensions.Portal
         /// <param name="pad">The pad the tag is on.</param>
         /// <param name="tagType">The type or tag, normal or uninitialized.</param>
         /// <param name="index">The index of the tag on the portal.</param>
-        public PresentTag(Pad pad, TagType tagType, byte index)
+        /// <param name="cardUid">The 7 bytes card UID.</param>
+        public PresentTag(Pad pad, TagType tagType, byte index, byte[] cardUid)
         {
             Pad = pad;
             TagType = tagType;
             Index = index;
+            CardUid = cardUid;
         }
 
         /// <summary>
@@ -37,6 +39,11 @@ namespace LegoDimensions.Portal
         /// Gets or sets the index of the tag on the portal.
         /// </summary>
         public byte Index { get; set; }
+
+        /// <summary>
+        /// Gets or sets the 7 bytes card UID.
+        /// </summary>
+        public byte[] CardUid { get; set; }
     }
 }
 
