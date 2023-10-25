@@ -4,6 +4,8 @@ The aim of this work is to be able to use Lego Dimensions portal and tags outsid
 
 You will find a detailed documentation of the Lego Dimensions protocol [here](https://github.com/Ellerbach/LegoDimensions/blob/main/LegoDimensionsProtocol.md). I built this documentation as I did not find anything that detailed.
 
+French and want to join an amazing community of Adult fan of Lego (AFOL)? Check out [FreeLUG](https://www.freelug.org/), the best association for AFOL in France!
+
 ## Lego Dimensions portal
 
 The Lego Dimensions portals compatible with this implementation are all except the XBox ones.
