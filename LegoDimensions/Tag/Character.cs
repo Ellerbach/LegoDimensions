@@ -137,7 +137,7 @@ namespace LegoDimensions.Tag
             new Character(79, "Unknown"             , "Unknown",               new List<string>() { "Unknown" }),
             new Character(80, "Unknown"             , "Unknown",               new List<string>() { "Unknown" }),
 
-            new Character(769, "Supergirl Red Lantern", "DC Comics",           new List<string>() { "Flying","Dive","Invulnerability","Super Strength","Laser","X-Ray Vision","Lantern Constructs","Dig","Grapple","Freeze Breath" }),
+            new Character(81, "Supergirl Red Lantern", "DC Comics",           new List<string>() { "Flying","Dive","Invulnerability","Super Strength","Laser","X-Ray Vision","Lantern Constructs","Dig","Grapple","Freeze Breath" }),
         };
     }
 }
