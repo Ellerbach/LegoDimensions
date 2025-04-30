@@ -31,6 +31,16 @@ For Linux users
 * Copy the [99-lego-dimensions.rules](https://github.com/Ellerbach/LegoDimensions/blob/main/linux-driver-rules/99-lego-dimensions.rules) file into `/etc/udev/rules.d/`. This will allow you to run the code from any user.
 * Reboot then device or apply the changes
 
+For MacOS users
+* Install `libusb` via [homebrew](https://brew.sh/)
+  ````
+  brew install libusb
+  ````
+* For debugging we need to start our IDE with sudo, for example [Jetbrains Rider](https://www.jetbrains.com/rider/):
+  ```
+  sudo /Applications/Rider.app/Contents/MacOS/rider
+  ```
+
 ### Portal instantiation and basic usage
 
 The code supports as many portal you you want. Each portal will instantiate a unique class. 2 static helpers are available to get an array of portal:
