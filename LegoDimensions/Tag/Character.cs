@@ -44,7 +44,7 @@ namespace LegoDimensions.Tag
         }
 
         /// <summary>
-        /// The list of all knonws characters.
+        /// The list of all knonw characters.
         /// </summary>
         public static readonly List<Character> Characters = new List<Character>()
         {
