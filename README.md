@@ -32,12 +32,16 @@ For Linux users
 * Reboot then device or apply the changes
 
 For MacOS users
+
 * Install `libusb` via [homebrew](https://brew.sh/)
-  ````
+
+  ```bash
   brew install libusb
   ````
+
 * For debugging we need to start our IDE with sudo, for example [Jetbrains Rider](https://www.jetbrains.com/rider/):
-  ```
+
+  ```bash
   sudo /Applications/Rider.app/Contents/MacOS/rider
   ```
 
