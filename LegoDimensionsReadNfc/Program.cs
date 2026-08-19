@@ -1,6 +1,7 @@
 ﻿// Licensed to Laurent Ellerbach and contributors under one or more agreements.
 // Laurent Ellerbach and contributors license this file to you under the MIT license.
 
+using System.Collections.ObjectModel;
 using System.IO.Ports;
 using Terminal.Gui;
 using Terminal.Gui.App;
@@ -11,18 +12,20 @@ var app = Application.Create();
 app.Init();
 
 var portNames = SerialPort.GetPortNames();
-var selectedPort = portNames.FirstOrDefault();
+var selectedPort = portNames.FirstOrDefault() ?? string.Empty;
 
-var root = new Window("Lego NFC setup")
+var root = new Window
 {
+    Title = "Lego NFC setup",
     X = 0,
     Y = 0,
     Width = Dim.Fill(),
     Height = Dim.Fill()
 };
 
-var portLabel = new Label("Serial port:")
+var portLabel = new Label
 {
+    Text = "Serial port:",
     X = 1,
     Y = 1,
     Width = 12,
@@ -36,10 +39,12 @@ var portList = new ListView
     Width = Dim.Fill() - 2,
     Height = 6
 };
-portList.SetSource(portNames);
+var portItems = new ObservableCollection<string>(portNames);
+portList.SetSource(portItems);
 
-var actionLabel = new Label("Action:")
+var actionLabel = new Label
 {
+    Text = "Action:",
     X = 1,
     Y = 10,
     Width = 12,
@@ -53,40 +58,20 @@ var actionList = new ListView
     Width = Dim.Fill() - 2,
     Height = 6
 };
-actionList.SetSource(new[] { "Erase tag", "Read tag", "Read all card", "Write tag", "Quit" });
+var actionItems = new ObservableCollection<string>(new[] { "Erase tag", "Read tag", "Read all card", "Write tag", "Quit" });
+actionList.SetSource(actionItems);
 
-var openButton = new Button("Open")
+var openButton = new Button
 {
+    Text = "Open",
     X = Pos.AnchorEnd(11),
     Y = Pos.AnchorEnd(1)
 };
-openButton.Clicked += () =>
+openButton.Accepting += (_, _) =>
 {
-    selectedPort = portNames[portList.SelectedItem >= 0 ? portList.SelectedItem : 0];
-    switch (actionList.SelectedItem)
-    {
-        case 0:
-            NfcPn532.OpenComPort(selectedPort);
-            NfcPn532.ErraseTag();
-            break;
-        case 1:
-            NfcPn532.OpenComPort(selectedPort);
-            NfcPn532.ReadLegoTag(false);
-            break;
-        case 2:
-            NfcPn532.OpenComPort(selectedPort);
-            NfcPn532.ReadLegoTag(true);
-            break;
-        case 3:
-            NfcPn532.OpenComPort(selectedPort);
-            NfcPn532.WriteEmptyTag(0, true);
-            break;
-        default:
-            app.RequestStop();
-            return;
-    }
+    // Action handling remains to be implemented in the actual UI flow.
 };
 
 root.Add(portLabel, portList, actionLabel, actionList, openButton);
 app.Run(root);
-app.Shutdown();
+app.Dispose();

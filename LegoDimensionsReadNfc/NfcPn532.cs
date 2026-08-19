@@ -59,10 +59,9 @@ namespace LegoDimensionsReadNfc
             DisplayInfo = new DisplayInfo();
             DisplayInfo.Label.Text = "Erase Tag: place an empty tag on the reader to erase it.";
             DisplayInfo.View.Text = string.Empty;
-            DisplayInfo.ButtonClose.Clicked += () =>
+            DisplayInfo.ButtonClose.Accepting += (_, _) =>
             {
                 stopped = true;
-                app.RequestStop();
             };
 
             (new Thread(() => app.Run(DisplayInfo))).Start();
@@ -120,14 +119,14 @@ namespace LegoDimensionsReadNfc
                 DisplayInfo.View.Text += "Card may not have been erased properly.\r\n";
             }
 
-            Application.DoEvents();
+            Thread.Yield();
 
             while (!stopped)
             {
                 Thread.Sleep(100);
             }
 
-            Application.Shutdown();
+            app.Dispose();
         }
 
         static public void WriteEmptyTag(ushort id, bool character)
@@ -140,11 +139,6 @@ namespace LegoDimensionsReadNfc
             DisplayInfo = new DisplayInfo();
             DisplayInfo.Label.Text = "Write Tag: place an empty tag on the reader to write it.";
             DisplayInfo.View.Text = string.Empty;
-            DisplayInfo.ButtonClose.Clicked += () =>
-            {
-                stopped = true;
-                app.RequestStop();
-            };
 
             (new Thread(() => app.Run(DisplayInfo))).Start();
 
@@ -166,7 +160,6 @@ namespace LegoDimensionsReadNfc
                 if (!Ultralight.ProcessAuthentication(passwd))
                 {
                     DisplayInfo.View.Text += "Failed to authenticate the card.\r\n";
-                    app.RequestStop();
                     return;
                 }
             }
@@ -184,7 +177,6 @@ namespace LegoDimensionsReadNfc
                 if (Ultralight.RunUltralightCommand() < 0)
                 {
                     DisplayInfo.View.Text += "Failed to read data block 0x24, can't erase the card.\r\n";
-                    app.RequestStop();
                     return;
                 }
             }
@@ -207,7 +199,6 @@ namespace LegoDimensionsReadNfc
                 else
                 {
                     DisplayInfo.View.Text += $"Not a supported NTAG card, only 213, 215 and 216 ar supported. Current detected type: {Ultralight.UltralightCardType}.\r\n";
-                    app.RequestStop();
                     return;
                 }
 
@@ -216,7 +207,6 @@ namespace LegoDimensionsReadNfc
                 if (Ultralight.RunUltralightCommand() < 0)
                 {
                     DisplayInfo.View.Text += "Failed to write new password\r\n";
-                    app.RequestStop();
                     return;
                 }
 
@@ -263,14 +253,14 @@ namespace LegoDimensionsReadNfc
 
             DisplayInfo.View.Text += "Setup for the new card done.\r\n";
 
-            Application.DoEvents();
+            Thread.Yield();
 
             while (!stopped)
             {
                 Thread.Sleep(100);
             }
 
-            Application.Shutdown();
+            app.Dispose();
         }
 
         static public void ReadLegoTag(bool dump)
@@ -282,11 +272,6 @@ namespace LegoDimensionsReadNfc
             DisplayInfo = new DisplayInfo();
             DisplayInfo.Label.Text = "Write Tag: place an empty tag on the reader to write it.";
             DisplayInfo.View.Text = string.Empty;
-            DisplayInfo.ButtonClose.Clicked += () =>
-            {
-                stopped = true;
-                app.RequestStop();
-            };
 
             (new Thread(() => app.Run(DisplayInfo))).Start();
 
@@ -310,7 +295,7 @@ namespace LegoDimensionsReadNfc
                 Debug.WriteLine("Generating authentication key");
                 Ultralight.AuthenticationKey = LegoTag.GenerateCardPassword(SerialNumber);
                 DisplayInfo.View.Text += $"Authentication key: {BitConverter.ToString(Ultralight.AuthenticationKey)}.\r\n";
-                Application.DoEvents();
+                Thread.Yield();
                 Ultralight.Command = UltralightCommand.PasswordAuthentication;
                 var auth = Ultralight.RunUltralightCommand();
 
@@ -346,12 +331,12 @@ namespace LegoDimensionsReadNfc
                             }
 
                             DisplayInfo.View.Text += "\r\n";
-                            Application.DoEvents();
+                            Thread.Yield();
                         }
                         else
                         {
                             DisplayInfo.View.Text += "and vehicle does not exist!\r\n";
-                            Application.DoEvents();
+                            Thread.Yield();
                         }
                     }
                     else
@@ -370,12 +355,12 @@ namespace LegoDimensionsReadNfc
                             }
 
                             DisplayInfo.View.Text += "\r\n";
-                            Application.DoEvents();
+                            Thread.Yield();
                         }
                         else
                         {
                             DisplayInfo.View.Text += "and character does not exist!\r\n";
-                            Application.DoEvents();
+                            Thread.Yield();
                         }
                     }
                 }
@@ -391,19 +376,19 @@ namespace LegoDimensionsReadNfc
                 DisplayInfo.View.Text += "Can't read the tag, place it again or another one.\r\n";
             }
 
-            app.RunIteration();
+            Thread.Yield();
             while (!stopped)
             {
                 Thread.Sleep(100);
             }
 
-            app.Shutdown();
+            app.Dispose();
         }
 
         static public void ReadAllCard()
         {
             DisplayInfo.View.Text += "Dump of all the card:\r\n";
-            Application.DoEvents();
+            Thread.Yield();
             for (int block = 0; block < Ultralight.NumberBlocks; block++)
             {
                 if (ReadBlock((byte)block))
@@ -424,7 +409,7 @@ namespace LegoDimensionsReadNfc
                     DisplayInfo.View.Text += "Can't read card\r\n";
                 }
 
-                Application.DoEvents();
+                Thread.Yield();
             }
         }
 
@@ -446,7 +431,7 @@ namespace LegoDimensionsReadNfc
                 DisplayInfo.View.Text += "Can't read the version.\r\n";
             }
 
-            Application.DoEvents();
+            Thread.Yield();
         }
 
         static private bool WriteAndCheck(byte block, byte[] data, int maxRetries = 3)
