@@ -8,7 +8,6 @@
 //  </auto-generated>
 // -----------------------------------------------------------------------------
 using Terminal.Gui;
-using Terminal.Gui.Views;
 
 namespace LegoDimensionsReadNfc
 {
