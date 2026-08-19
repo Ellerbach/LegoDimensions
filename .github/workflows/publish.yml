@@ -58,11 +58,22 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Test
-      run: dotnet test --configuration Release --no-build --verbosity normal  
+      run: dotnet test --configuration Release --no-build --verbosity normal
 
-    # Create a nuget Release      
+    - name: Clean stale artifacts
+      shell: bash
+      run: |
+        rm -rf ./artifacts
+        mkdir -p ./artifacts
+
+    # Create a nuget Release
     - name: Pack the NuGet package
-      run: dotnet pack ./LegoDimensions --configuration Release --output ./artifacts
+      run: |
+        dotnet pack ./LegoDimensions \
+          --configuration Release \
+          --output ./artifacts \
+          -p:Version=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+          -p:PackageVersion=${{ steps.gitversion.outputs.MajorMinorPatch }}
 
     - name: Build NFC app
       run: |
@@ -80,7 +91,7 @@ jobs:
     - name: Publish separate tools to NuGet
       shell: bash
       run: |
-        pkg="$(find ./artifacts -maxdepth 1 -type f -name 'LegoDimensions*.nupkg' | head -n 1)"
+        pkg="$(find ./artifacts -maxdepth 1 -type f -name 'LegoDimensions*.nupkg' | sort | tail -n 1)"
         if [ -z "$pkg" ]; then
           echo "No LegoDimensions NuGet package found in ./artifacts"
           exit 1
