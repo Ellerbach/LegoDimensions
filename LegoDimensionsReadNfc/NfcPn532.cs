@@ -108,7 +108,7 @@ namespace LegoDimensionsReadNfc
             {
             Reselect:
                 _currentCardUid = new byte[0];
-                if (GetUltralightCard() == null)
+                if (GetUltralightCard(stopSignal) is null)
                 {
                     return;
                 }
@@ -209,7 +209,7 @@ namespace LegoDimensionsReadNfc
             {
             Reselect:
                 _currentCardUid = new byte[0];
-                if (GetUltralightCard() == null)
+                if (GetUltralightCard(stopSignal) is null)
                 {
                     return;
                 }
@@ -348,7 +348,7 @@ namespace LegoDimensionsReadNfc
             DisplayInfo = new DisplayInfo();
             InvokeUi(() =>
             {
-                DisplayInfo.Label.Text = "Write Tag: place an empty tag on the reader to write it.";
+                DisplayInfo.Label.Text = "Read Tag: place a Lego tag on the reader to read it.";
                 DisplayInfo.View.Text = string.Empty;
             });
             DisplayInfo.ButtonClose.Accepting += (_, _) =>
@@ -366,7 +366,7 @@ namespace LegoDimensionsReadNfc
             try
             {
                 _currentCardUid = new byte[0];
-                if (GetUltralightCard() == null)
+                if (GetUltralightCard(stopSignal) is null)
                 {
                     return;
                 }
@@ -621,11 +621,11 @@ namespace LegoDimensionsReadNfc
             return res >= 0;
         }
 
-        static private UltralightCard? GetUltralightCard()
+        static private UltralightCard? GetUltralightCard(ManualResetEventSlim stopSignal)
         {
         CheckCard:
             byte[]? retData = null;
-            while ((!Console.KeyAvailable))
+            while (!stopSignal.IsSet && !Console.KeyAvailable)
             {
                 retData = Pn532.ListPassiveTarget(MaxTarget.One, TargetBaudRate.B106kbpsTypeA);
                 if (retData is object)
@@ -638,8 +638,8 @@ namespace LegoDimensionsReadNfc
                 _currentCardUid = new byte[0];
             }
 
-            // Key pressed, exit
-            if (retData is null)
+            // Close requested or no card found, exit
+            if (stopSignal.IsSet || retData is null)
             {
                 return null;
             }

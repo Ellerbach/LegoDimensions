@@ -41,6 +41,10 @@ var portList = new ListView
 };
 var portItems = new ObservableCollection<string>(portNames);
 portList.SetSource(portItems);
+if (portItems.Count > 0)
+{
+    portList.SelectedItem = 0;
+}
 
 var actionLabel = new Label
 {
@@ -60,6 +64,7 @@ var actionList = new ListView
 };
 var actionItems = new ObservableCollection<string>(new[] { "Erase tag", "Read tag", "Read all card", "Write tag", "Quit" });
 actionList.SetSource(actionItems);
+actionList.SelectedItem = 0;
 
 var openButton = new Button
 {
@@ -69,7 +74,35 @@ var openButton = new Button
 };
 openButton.Accepting += (_, _) =>
 {
-    // Action handling remains to be implemented in the actual UI flow.
+    var portIndex = portList.SelectedItem >= 0 ? portList.SelectedItem : 0;
+    var portName = portIndex < portItems.Count ? portItems[portIndex] : string.Empty;
+    if (string.IsNullOrWhiteSpace(portName))
+    {
+        return;
+    }
+
+    NfcPn532.OpenComPort(portName);
+
+    var actionIndex = actionList.SelectedItem >= 0 ? actionList.SelectedItem : 0;
+    var actionName = actionIndex < actionItems.Count ? actionItems[actionIndex] : string.Empty;
+    switch (actionName)
+    {
+        case "Erase tag":
+            NfcPn532.ErraseTag();
+            break;
+        case "Read tag":
+            NfcPn532.ReadLegoTag(false);
+            break;
+        case "Read all card":
+            NfcPn532.ReadLegoTag(true);
+            break;
+        case "Write tag":
+            NfcPn532.WriteEmptyTag(0, true);
+            break;
+        case "Quit":
+            app.RequestStop();
+            break;
+    }
 };
 
 root.Add(portLabel, portList, actionLabel, actionList, openButton);
