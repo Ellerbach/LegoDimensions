@@ -25,7 +25,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="LibUsbDotNet" Version="3.0.102-alpha" />
+    <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
   </ItemGroup>
 
 </Project>
