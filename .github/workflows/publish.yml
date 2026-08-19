@@ -12,13 +12,19 @@ jobs:
       pr-labels: ${{ steps.pr-labels.outputs.result }}
     steps:
     
-    # This is getting all the labels sets on the PR
+    # This checks whether the pushed commit is associated with an open PR labeled "publish".
     - name: Get PR labels
       id: pr-labels
-      uses: shioyang/check-pr-labels-on-push-action@v1.0.12
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        labels: '["publish"]'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        label_names=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq '.[].labels[].name' 2>/dev/null || true)
+        if echo "$label_names" | grep -Eq '(^|[[:space:]])publish([[:space:]]|$)'; then
+          echo "result=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "result=false" >> "$GITHUB_OUTPUT"
+        fi
     
   publish:
     runs-on: ubuntu-latest
@@ -40,7 +46,7 @@ jobs:
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v4.7.0
       with:
-        versionSpec: '5.x'
+        versionSpec: '6.2.x'
     - name: Use GitVersion
       # Step id is used as reference for the output values
       id: gitversion 
@@ -72,8 +78,15 @@ jobs:
     # Use --skip-duplicate to prevent errors if a package with the same version already exists.
     # If you retry a failed workflow, already published packages will be skipped without error.
     - name: Publish separate tools to NuGet
-      run: dotnet nuget push ./artifacts/LegoDimensions.${{ steps.gitversion.outputs.MajorMinorPatch }}.nupkg --api-key "${{ secrets.NUGET_TOOLS }}" --source https://api.nuget.org/v3/index.json --skip-duplicate          
-    
+      shell: bash
+      run: |
+        pkg="$(find ./artifacts -maxdepth 1 -type f -name 'LegoDimensions*.nupkg' | head -n 1)"
+        if [ -z "$pkg" ]; then
+          echo "No LegoDimensions NuGet package found in ./artifacts"
+          exit 1
+        fi
+        echo "Pushing $pkg"
+        dotnet nuget push "$pkg" --api-key "${{ secrets.NUGET_TOOLS }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
     # Create the CHANGELOG for this release
     # We'll compile it from last the version
     # to the current commit
