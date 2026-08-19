@@ -8,14 +8,14 @@ namespace LegoDimensionsRunner
 {
     public class Animation
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         public int? Duration { get; set; }
 
-        public List<dynamic> Actions { get; set; }
+        public List<dynamic> Actions { get; set; } = [];
 
         [JsonIgnore]
-        public List<Action> CompiledActions { get; set; }
+        public List<Action> CompiledActions { get; set; } = [];
 
         public int? PortalId { get; set; }
     }

@@ -11,8 +11,11 @@ namespace LegoDimensionsRunner
 {
     public static class ProcessRunner
     {
-        private static ILegoPortal[] _portals = null;
-        private static Runner _runner;
+        private static ILegoPortal[]? _portals;
+        private static Runner? _runner;
+
+        private static ILegoPortal[] Portals => _portals
+            ?? throw new InvalidOperationException("Portals must be initialized before building a runner.");
 
         public static void CreateAllPortals()
         {
@@ -26,7 +29,7 @@ namespace LegoDimensionsRunner
 
         public static void SetSinglePortal(ILegoPortal portal) => _portals = new ILegoPortal[] { portal };
 
-        public static ILegoPortal[] GetLegoPortals() => _portals;
+        public static ILegoPortal[]? GetLegoPortals() => _portals;
 
         public static void Build(Runner runner)
         {
@@ -34,7 +37,7 @@ namespace LegoDimensionsRunner
             {
                 var portalId = anim.PortalId;
                 // Sanity check
-                if ((portalId != null) && (portalId.Value < 0 || portalId.Value >= _portals.Length))
+                if ((portalId != null) && (portalId.Value < 0 || portalId.Value >= Portals.Length))
                 {
                     continue;
                 }
@@ -48,14 +51,14 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].SetColor(setColor.Pad, GetColorFromString(setColor.Color));
+                                    Portals[i].SetColor(setColor.Pad, GetColorFromString(setColor.Color));
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].SetColor(setColor.Pad, GetColorFromString(setColor.Color));
+                                Portals[portalId.Value].SetColor(setColor.Pad, GetColorFromString(setColor.Color));
                             }
 
                             Thread.Sleep(setColor.Duration ?? 0);
@@ -67,14 +70,14 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].SetColorAll(GetColorFromString(setColorAll.Center), GetColorFromString(setColorAll.Left), GetColorFromString(setColorAll.Right));
+                                    Portals[i].SetColorAll(GetColorFromString(setColorAll.Center), GetColorFromString(setColorAll.Left), GetColorFromString(setColorAll.Right));
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].SetColorAll(GetColorFromString(setColorAll.Center), GetColorFromString(setColorAll.Left), GetColorFromString(setColorAll.Right));
+                                Portals[portalId.Value].SetColorAll(GetColorFromString(setColorAll.Center), GetColorFromString(setColorAll.Left), GetColorFromString(setColorAll.Right));
                             }
 
                             Thread.Sleep(setColorAll.Duration ?? 0);
@@ -86,14 +89,14 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].Flash(flash.Pad, new FlashPad(flash.TickOn, flash.TickOff, flash.TickCount, GetColorFromString(flash.Color), flash.Enabled));
+                                    Portals[i].Flash(flash.Pad, new FlashPad(flash.TickOn, flash.TickOff, flash.TickCount, GetColorFromString(flash.Color), flash.Enabled));
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].Flash(flash.Pad, new FlashPad(flash.TickOn, flash.TickOff, flash.TickCount, GetColorFromString(flash.Color), flash.Enabled));
+                                Portals[portalId.Value].Flash(flash.Pad, new FlashPad(flash.TickOn, flash.TickOff, flash.TickCount, GetColorFromString(flash.Color), flash.Enabled));
                             }
 
                             Thread.Sleep(flash?.Duration ?? 0);
@@ -105,14 +108,14 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].SwitchOffAll();
+                                    Portals[i].SwitchOffAll();
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].SwitchOffAll();
+                                Portals[portalId.Value].SwitchOffAll();
                             }
 
                             Thread.Sleep(switchOffAll?.Duration ?? 0);
@@ -124,16 +127,16 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].FlashAll(new FlashPad(flashAll.CenterTickOn, flashAll.CenterTickOn, flashAll.CenterTickOn, GetColorFromString(flashAll.CenterColor), flashAll.CenterEnabled),
+                                    Portals[i].FlashAll(new FlashPad(flashAll.CenterTickOn, flashAll.CenterTickOn, flashAll.CenterTickOn, GetColorFromString(flashAll.CenterColor), flashAll.CenterEnabled),
                                         new FlashPad(flashAll.LeftTickOn, flashAll.LeftTickOff, flashAll.LeftTickCount, GetColorFromString(flashAll.LeftColor), flashAll.LeftEnabled),
                                         new FlashPad(flashAll.RightTickOn, flashAll.RightTickOff, flashAll.RightTickCount, GetColorFromString(flashAll.RightColor), flashAll.RightEnabled));
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].FlashAll(new FlashPad(flashAll.CenterTickOn, flashAll.CenterTickOn, flashAll.CenterTickOn, GetColorFromString(flashAll.CenterColor), flashAll.CenterEnabled),
+                                Portals[portalId.Value].FlashAll(new FlashPad(flashAll.CenterTickOn, flashAll.CenterTickOn, flashAll.CenterTickOn, GetColorFromString(flashAll.CenterColor), flashAll.CenterEnabled),
                                         new FlashPad(flashAll.LeftTickOn, flashAll.LeftTickOff, flashAll.LeftTickCount, GetColorFromString(flashAll.LeftColor), flashAll.LeftEnabled),
                                         new FlashPad(flashAll.RightTickOn, flashAll.RightTickOff, flashAll.RightTickCount, GetColorFromString(flashAll.RightColor), flashAll.RightEnabled));
                             }
@@ -146,14 +149,14 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].Fade(fade.Pad, new FadePad(fade.TickTime, fade.TickCount, GetColorFromString(fade.Color), fade.Enabled));
+                                    Portals[i].Fade(fade.Pad, new FadePad(fade.TickTime, fade.TickCount, GetColorFromString(fade.Color), fade.Enabled));
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].Fade(fade.Pad, new FadePad(fade.TickTime, fade.TickCount, GetColorFromString(fade.Color), fade.Enabled));
+                                Portals[portalId.Value].Fade(fade.Pad, new FadePad(fade.TickTime, fade.TickCount, GetColorFromString(fade.Color), fade.Enabled));
                             }
 
                             Thread.Sleep(fade?.Duration ?? 0);
@@ -165,16 +168,16 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].FadeAll(new FadePad(fadeAll.CenterTickTime, fadeAll.CenterTickCount, GetColorFromString(fadeAll.CenterColor), fadeAll.CenterEnabled),
+                                    Portals[i].FadeAll(new FadePad(fadeAll.CenterTickTime, fadeAll.CenterTickCount, GetColorFromString(fadeAll.CenterColor), fadeAll.CenterEnabled),
                                         new FadePad(fadeAll.LeftTickTime, fadeAll.LeftTickCount, GetColorFromString(fadeAll.LeftColor), fadeAll.LeftEnabled),
                                         new FadePad(fadeAll.RightTickTime, fadeAll.RightTickCount, GetColorFromString(fadeAll.RightColor), fadeAll.RightEnabled));
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].FadeAll(new FadePad(fadeAll.CenterTickTime, fadeAll.CenterTickCount, GetColorFromString(fadeAll.CenterColor), fadeAll.CenterEnabled),
+                                Portals[portalId.Value].FadeAll(new FadePad(fadeAll.CenterTickTime, fadeAll.CenterTickCount, GetColorFromString(fadeAll.CenterColor), fadeAll.CenterEnabled),
                                     new FadePad(fadeAll.LeftTickTime, fadeAll.LeftTickCount, GetColorFromString(fadeAll.LeftColor), fadeAll.LeftEnabled),
                                     new FadePad(fadeAll.RightTickTime, fadeAll.RightTickCount, GetColorFromString(fadeAll.RightColor), fadeAll.RightEnabled));
                             }
@@ -188,14 +191,14 @@ namespace LegoDimensionsRunner
                         {
                             if (portalId == null)
                             {
-                                for (int i = 0; i < _portals.Length; i++)
+                                for (int i = 0; i < Portals.Length; i++)
                                 {
-                                    _portals[i].FadeRandom(fadeRandom.Pad, fadeRandom.TickTime, fadeRandom.TickCount);
+                                    Portals[i].FadeRandom(fadeRandom.Pad, fadeRandom.TickTime, fadeRandom.TickCount);
                                 }
                             }
                             else
                             {
-                                _portals[portalId.Value].FadeRandom(fadeRandom.Pad, fadeRandom.TickTime, fadeRandom.TickCount);
+                                Portals[portalId.Value].FadeRandom(fadeRandom.Pad, fadeRandom.TickTime, fadeRandom.TickCount);
                             }
 
                             Thread.Sleep(fadeRandom?.Duration ?? 0);
@@ -205,9 +208,9 @@ namespace LegoDimensionsRunner
             }
 
             _runner = runner;
-            for (int i = 0; i < _portals.Length; i++)
+            for (int i = 0; i < Portals.Length; i++)
             {
-                _portals[i].LegoTagEvent += PortalLegoTagEvent;
+                Portals[i].LegoTagEvent += PortalLegoTagEvent;
             }
         }
 
@@ -243,7 +246,7 @@ namespace LegoDimensionsRunner
             foreach (var item in events)
             {
                 var anims = _runner?.Animations.Where(m => m.Name == item.Animation);
-                if (anims.Any())
+                if (anims != null)
                 {
                     foreach (var anim in anims)
                     {
@@ -263,14 +266,20 @@ namespace LegoDimensionsRunner
                 PropertyNameCaseInsensitive = true
             };
 
-            return JsonSerializer.Deserialize<Runner>(json, options);
+            return JsonSerializer.Deserialize<Runner>(json, options)
+                ?? throw new JsonException("The runner configuration cannot be null.");
         }
 
         public static void Run(CancellationToken token)
         {
+            if (_runner == null)
+            {
+                throw new InvalidOperationException("Build must be called before Run.");
+            }
+
             while (!token.IsCancellationRequested)
             {
-                foreach (var item in _runner?.Playlist)
+                foreach (var item in _runner.Playlist)
                 {
                     if (token.IsCancellationRequested)
                     {
@@ -278,7 +287,7 @@ namespace LegoDimensionsRunner
                     }
 
                     // Play the animation
-                    var anim = _runner?.Animations?.Where(m => string.Compare(m.Name, item, true) == 0).FirstOrDefault();
+                    var anim = _runner.Animations.Where(m => string.Compare(m.Name, item, true) == 0).FirstOrDefault();
                     if (anim != null)
                     {
                         foreach (var act in anim.CompiledActions)
@@ -295,7 +304,7 @@ namespace LegoDimensionsRunner
             action = null;
             // First, check if we have a json object or just a string
 
-            var actionRef = (T)Activator.CreateInstance(typeof(T));
+            var actionRef = Activator.CreateInstance<T>();
 
             try
             {
@@ -316,9 +325,9 @@ namespace LegoDimensionsRunner
             if (action != null)
             {
                 var actionRefMethod = actionRef.GetType().GetMethods().Where(m => m.Name == "get_Name").FirstOrDefault();
-                var actionMethod = actionRef.GetType().GetMethods().Where(m => m.Name == "get_Name").FirstOrDefault();
+                var actionMethod = action.GetType().GetMethods().Where(m => m.Name == "get_Name").FirstOrDefault();
 
-                if (actionRefMethod.Invoke(actionRef, null) == actionMethod.Invoke(action, null))
+                if (actionRefMethod?.Invoke(actionRef, null) == actionMethod?.Invoke(action, null))
                 {
                     return true;
                 }
@@ -327,15 +336,22 @@ namespace LegoDimensionsRunner
             }
 
             // If just a string, then we have a key value list like key1=value1,key2=value2
-            string[] data;
+            string? serialized;
             try
             {
-                data = (ser.GetString()).Trim().Split(',');
+                serialized = ser?.GetString();
             }
             catch
             {
-                data = ((string)ser).Trim().Split(',');
+                serialized = ser as string;
             }
+
+            if (string.IsNullOrWhiteSpace(serialized))
+            {
+                return false;
+            }
+
+            var data = serialized.Trim().Split(',');
 
             Dictionary<string, string> dico = new Dictionary<string, string>();
             foreach (string s in data)
@@ -349,7 +365,7 @@ namespace LegoDimensionsRunner
                 try
                 {
                     var methods = typeof(T).GetMethods();
-                    action = (T)Activator.CreateInstance(typeof(T));
+                    action = Activator.CreateInstance<T>();
                     foreach (var method in methods.Where(m => m.Name.StartsWith("set_")))
                     {
                         var mem = method.Name.ToLower();
@@ -358,7 +374,7 @@ namespace LegoDimensionsRunner
                         {
                             var toParse = dico[mem.Substring(4)];
                             var parameters = method.GetParameters();
-                            object param = null;
+                            object? param = null;
                             if (parameters[0].ParameterType == typeof(string))
                             {
                                 param = toParse;
@@ -409,7 +425,7 @@ namespace LegoDimensionsRunner
                                 }
                             }
 
-                            method.Invoke(action, new object[] { param });
+                            method.Invoke(action, new[] { param });
                         }
 
                     }

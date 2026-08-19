@@ -36,6 +36,11 @@ ProcessRunner.CreateAllPortals();
 
 // Just to make sure we'll keep things clean
 var portals = ProcessRunner.GetLegoPortals();
+if (portals == null)
+{
+    throw new InvalidOperationException("No portals were initialized.");
+}
+
 LegoPortal[] legoPortals = new LegoPortal[portals.Length];
 for (int i = 0; i < portals.Length; i++)
 {

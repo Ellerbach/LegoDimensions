@@ -25,6 +25,7 @@ namespace LegoDimensionsRunnerTests
             string ser = JsonConvert.SerializeObject(runner);
 
             var runnerDeser = JsonConvert.DeserializeObject<Runner>(ser);
+            Assert.NotNull(runnerDeser);
             Assert.Equal(1, runnerDeser.Animations.Count);
             Assert.Equal("Test", runnerDeser.Animations[0].Name);
             Assert.Equal(strSetColor, runnerDeser.Animations[0].Actions[0]);
@@ -47,6 +48,7 @@ namespace LegoDimensionsRunnerTests
             string ser = JsonConvert.SerializeObject(runner);
 
             var runnerDeser = JsonConvert.DeserializeObject<Runner>(ser);
+            Assert.NotNull(runnerDeser);
             Assert.Equal(1, runnerDeser.Animations.Count);
             Assert.Equal("Test", runnerDeser.Animations[0].Name);
             Assert.Equal(setColor.Name, (string)runnerDeser.Animations[0].Actions[0]["Name"]);

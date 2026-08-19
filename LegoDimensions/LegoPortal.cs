@@ -23,7 +23,7 @@ namespace LegoDimensions
         private const int ReceiveTimeout = 2000;
 
         // This needs to be static to keep the context otherwise, the app will close it
-        private static UsbContext context = null;
+        private static UsbContext? context;
 
         // Class variables
         private IUsbDevice _portal;
@@ -111,7 +111,7 @@ namespace LegoDimensions
         /// </summary>
         public IUsbDevice UsbDevice => _portal;
 
-        public byte[] SerialNumber { get; internal set; }
+        public byte[] SerialNumber { get; internal set; } = [];
 
         /// <summary>
         /// Creates a new instance of a Lego Dimensions Portal.
@@ -400,7 +400,7 @@ namespace LegoDimensions
         /// <param name="password">The desired state, Automatic is the default value.</param>
         /// <param name="index">The tag index.</param>
         /// <param name="newPassword">The new 4 bytes password if any.</param>
-        public void SetTagPassword(PortalPassword password, byte index, byte[] newPassword = null)
+        public void SetTagPassword(PortalPassword password, byte index, byte[]? newPassword = null)
         {
             if (password == PortalPassword.Custom)
             {
@@ -616,12 +616,25 @@ namespace LegoDimensions
         /// <inheritdoc/>
         public void Dispose()
         {
-            _cancelThread.Cancel();
-            // Make sure the thread is stopped
-            _readThread?.Join();
-            _portal.ReleaseInterface(_portal.Configs[0].Interfaces[0].Number);
-            _portal.Close();
-            _portal.Dispose();
+            if (_cancelThread is not null && !_cancelThread.IsCancellationRequested)
+            {
+                _cancelThread.Cancel();
+            }
+
+            // Make sure the thread is stopped before releasing native resources.
+            _readThread?.Join(2000);
+
+            LegoTagEvent = null;
+            _presentTags?.Clear();
+            _padTag?.Clear();
+            _commandId?.Clear();
+
+            if (_portal is not null)
+            {
+                _portal.ReleaseInterface(_portal.Configs[0].Interfaces[0].Number);
+                _portal.Close();
+                _portal.Dispose();
+            }
         }
     }
 }

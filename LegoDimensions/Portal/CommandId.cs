@@ -5,7 +5,7 @@ namespace LegoDimensions.Portal
 {
     internal class CommandId
     {
-        public CommandId(byte messageId, MessageCommand messageCommand, ManualResetEvent manualResetEvent)
+        public CommandId(byte messageId, MessageCommand messageCommand, ManualResetEvent? manualResetEvent)
         {
             MessageId = messageId;
             MessageCommand = messageCommand;
@@ -16,7 +16,7 @@ namespace LegoDimensions.Portal
 
         public byte MessageId { get; set; }
 
-        public ManualResetEvent ManualResetEvent { get; set; }
+        public ManualResetEvent? ManualResetEvent { get; set; }
 
         public object? Result { get; set; }
     }

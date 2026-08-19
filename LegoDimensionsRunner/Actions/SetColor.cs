@@ -14,7 +14,7 @@ namespace LegoDimensionsRunner.Actions
 
         public Pad Pad { get; set; }
 
-        public string Color { get; set; }
+        public string Color { get; set; } = string.Empty;
 
         public override string ToString()
         {

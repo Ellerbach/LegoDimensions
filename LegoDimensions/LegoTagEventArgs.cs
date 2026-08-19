@@ -30,9 +30,9 @@ namespace LegoDimensions
         /// <param name="uuid">The 7 bytes card UID.</param>
         /// <param name="tag">The Lego Tag, can be either a vehicle or a character.</param>
         /// <param name="index">The index on the portal.</param>
-        public LegoTagEventArgs(Pad pad, bool present, byte[] uuid, ILegoTag tag, byte index)
+        public LegoTagEventArgs(Pad pad, bool present, byte[]? uuid, ILegoTag? tag, byte index)
         {
-            CardUid = uuid;
+            CardUid = uuid is null ? [] : [.. uuid];
             Pad = pad;
             Present = present;
             LegoTag = tag;

@@ -9,7 +9,7 @@ namespace LegoDimensions.Portal
     {
         public int TagIndex { get; set; }
 
-        public byte[] CardUid { get; set; }
+        public byte[] CardUid { get; set; } = [];
 
         public Pad Pad { get; set; }
 

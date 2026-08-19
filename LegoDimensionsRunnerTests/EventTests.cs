@@ -12,18 +12,20 @@ namespace LegoDimensionsRunnerTests
     public class EventTests
     {
         private const int MaxWait = 5000;
-        private static TestPortal _portal;
+        private static readonly TestPortal _portal;
 
         static EventTests()
         {
-            if (ProcessRunner.GetLegoPortals() == null)
+            var portals = ProcessRunner.GetLegoPortals();
+            if (portals == null)
             {
                 _portal = new TestPortal();
                 ProcessRunner.SetSinglePortal(_portal);
             }
             else
             {
-                _portal = ProcessRunner.GetLegoPortals()[0] as TestPortal;
+                _portal = portals[0] as TestPortal
+                    ?? throw new InvalidOperationException("Expected a test portal.");
             }
         }
 

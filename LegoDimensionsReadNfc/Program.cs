@@ -144,17 +144,17 @@ switch (actionChoice.SelectedItem)
         Application.Shutdown();
         if (okpressed)
         {
-            ushort id = 0;
+            ushort id;
             if (entry.Text.IsEmpty)
             {
-                if (list.SelectedItem > 0)
+                if (list.SelectedItem < 0 || !ushort.TryParse(details[list.SelectedItem].Split(':')[0], out id))
                 {
-                    id = ushort.Parse(details[list.SelectedItem].Split(":")[0]);
+                    goto StartAgain;
                 }
             }
-            else
+            else if (!ushort.TryParse(entry.Text.ToString(), out id))
             {
-                id = ushort.Parse(entry.Text.ToString());
+                goto StartAgain;
             }
 
             NfcPn532.WriteEmptyTag(id, id < 1000);

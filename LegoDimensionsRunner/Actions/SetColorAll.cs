@@ -10,11 +10,11 @@ namespace LegoDimensionsRunner.Actions
 
         public int? Duration { get; set; }
 
-        public string Center { get; set; }
+        public string Center { get; set; } = string.Empty;
 
-        public string Left { get; set; }
+        public string Left { get; set; } = string.Empty;
 
-        public string Right { get; set; }
+        public string Right { get; set; } = string.Empty;
 
         public override string ToString()
         {
