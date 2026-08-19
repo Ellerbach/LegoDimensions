@@ -28,7 +28,7 @@ namespace LegoDimensionsRunner.Actions
         /// <summary>
         /// Gets or sets the color.
         /// </summary>
-        public string CenterColor { get; set; }
+        public string CenterColor { get; set; } = string.Empty;
         
         /// <summary>
         /// Gets or sets the value for enabled pad.
@@ -48,7 +48,7 @@ namespace LegoDimensionsRunner.Actions
         /// <summary>
         /// Gets or sets the color.
         /// </summary>
-        public string LeftColor { get; set; }  
+        public string LeftColor { get; set; } = string.Empty;
         
         /// <summary>
         /// Gets or sets the value for enabled pad.
@@ -68,7 +68,7 @@ namespace LegoDimensionsRunner.Actions
         /// <summary>
         /// Gets or sets the color.
         /// </summary>
-        public string RightColor { get; set; }
+        public string RightColor { get; set; } = string.Empty;
 
         public override string ToString()
         {

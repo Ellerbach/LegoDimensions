@@ -15,7 +15,7 @@ jobs:
     # This is getting all the labels sets on the PR
     - name: Get PR labels
       id: pr-labels
-      uses: shioyang/check-pr-labels-on-push-action@v1.0.9
+      uses: shioyang/check-pr-labels-on-push-action@v1.0.12
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         labels: '["publish"]'
@@ -27,24 +27,24 @@ jobs:
     steps:
     # Checkout sources. Depth=0 is for using GitVersion
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 6.x
+        dotnet-version: 10.0.x
 
       # Install and Setup GitVersion
     - name: Install GitVersion
-      uses: gittools/actions/gitversion/setup@v0
+      uses: gittools/actions/gitversion/setup@v4.7.0
       with:
         versionSpec: '5.x'
     - name: Use GitVersion
       # Step id is used as reference for the output values
       id: gitversion 
-      uses: gittools/actions/gitversion/execute@v0
+      uses: gittools/actions/gitversion/execute@v4.7.0
 
       # Restore, build and test the project
     - name: Restore dependencies
@@ -79,7 +79,7 @@ jobs:
     # to the current commit
     - name: Build Changelog
       id: github_release
-      uses: mikepenz/release-changelog-builder-action@v1
+      uses: mikepenz/release-changelog-builder-action@v6
       with:
         configuration: "./changelog-config.json"
         fromTag: ${{ steps.gitversion.outputs.VersionSourceSha }}

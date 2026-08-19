@@ -23,7 +23,7 @@ namespace LegoDimensions
         private const int ReceiveTimeout = 2000;
 
         // This needs to be static to keep the context otherwise, the app will close it
-        private static UsbContext context = null;
+        private static UsbContext? context;
 
         // Class variables
         private IUsbDevice _portal;
@@ -111,7 +111,7 @@ namespace LegoDimensions
         /// </summary>
         public IUsbDevice UsbDevice => _portal;
 
-        public byte[] SerialNumber { get; internal set; }
+        public byte[] SerialNumber { get; internal set; } = [];
 
         /// <summary>
         /// Creates a new instance of a Lego Dimensions Portal.
@@ -400,7 +400,7 @@ namespace LegoDimensions
         /// <param name="password">The desired state, Automatic is the default value.</param>
         /// <param name="index">The tag index.</param>
         /// <param name="newPassword">The new 4 bytes password if any.</param>
-        public void SetTagPassword(PortalPassword password, byte index, byte[] newPassword = null)
+        public void SetTagPassword(PortalPassword password, byte index, byte[]? newPassword = null)
         {
             if (password == PortalPassword.Custom)
             {

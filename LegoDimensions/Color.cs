@@ -1357,7 +1357,7 @@ namespace LegoDimensions
         /// </summary>
         /// <param name="other">An object to compare with this object.</param>
         /// <returns>true if the current object is equal to other; otherwise, false.</returns>
-        public override bool Equals(object other) => _color == ((Color)other)._color;
+        public override bool Equals(object? other) => other is Color color && _color == color._color;
 
         /// <summary>
         /// Gets the hue-saturation-lightness (HSL) lightness value for this System.Drawing.Color structure.
@@ -1452,7 +1452,7 @@ namespace LegoDimensions
                 {
                     if (string.Compare(member.Name.Substring(4), colorName, true) == 0)
                     {
-                        return (Color)member.Invoke(null, null);
+                        return member.Invoke(null, null) is Color color ? color : null;
                     }
                 }
             }

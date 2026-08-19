@@ -32,7 +32,7 @@ namespace LegoDimensionsRunner.Actions
         /// <summary>
         /// Gets or sets the string representation of the color.
         /// </summary>
-        public string Color { get; set; }
+        public string Color { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets of sets if the pad should be enabled.

@@ -24,7 +24,7 @@ namespace LegoDimensionsRunnerTests
 
         public event EventHandler<LegoTagEventArgs>? LegoTagEvent;
 
-        public string GetLastFunction { get; set ; }
+        public string? GetLastFunction { get; set ; }
 
         public void RaiseTheEvent(LegoTagEventArgs tagEvent) => LegoTagEvent?.Invoke(this, tagEvent);
 

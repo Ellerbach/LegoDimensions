@@ -15,7 +15,7 @@ namespace LegoDimensionsRunner
 
         public Pad Pad { get; set; }
 
-        public string Animation { get; set; }
+        public string Animation { get; set; } = string.Empty;
 
         public int? PortalId { get; set; }
     }

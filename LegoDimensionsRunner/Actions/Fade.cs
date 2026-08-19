@@ -20,7 +20,7 @@ namespace LegoDimensionsRunner.Actions
 
         public byte TickCount { get; set; }
 
-        public string Color { get; set; }
+        public string Color { get; set; } = string.Empty;
 
         public override string ToString()
         {

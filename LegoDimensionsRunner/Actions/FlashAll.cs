@@ -16,7 +16,7 @@ namespace LegoDimensionsRunner.Actions
 
         public byte CenterTickCount { get; set; }
 
-        public string CenterColor { get; set; }
+        public string CenterColor { get; set; } = string.Empty;
 
         public bool CenterEnabled { get; set; } = true;
 
@@ -26,7 +26,7 @@ namespace LegoDimensionsRunner.Actions
 
         public byte LeftTickCount { get; set; }
 
-        public string LeftColor { get; set; }
+        public string LeftColor { get; set; } = string.Empty;
 
         public bool LeftEnabled { get; set; } = true;
 
@@ -36,7 +36,7 @@ namespace LegoDimensionsRunner.Actions
 
         public byte RightTickCount { get; set; }
 
-        public string RightColor { get; set; }
+        public string RightColor { get; set; } = string.Empty;
 
         public bool RightEnabled { get; set; } = true;
 

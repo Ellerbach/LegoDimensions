@@ -9,11 +9,11 @@ namespace LegoDimensionsTests
         public void TestRebuild()
         {
             // Arrange
-            var vehicle0 = new Vehicle(1000, "name", "world", null);            
-            var vehicle1 = new Vehicle(1001, "name", "world", null);            
-            var vehicle2 = new Vehicle(1002, "name", "world", null);            
-            var vehicle3 = new Vehicle(1003, "name", "world", null);            
-            var vehicle155 = new Vehicle(1155, "name", "world", null);            
+            var vehicle0 = new Vehicle(1000, "name", "world", []);
+            var vehicle1 = new Vehicle(1001, "name", "world", []);
+            var vehicle2 = new Vehicle(1002, "name", "world", []);
+            var vehicle3 = new Vehicle(1003, "name", "world", []);
+            var vehicle155 = new Vehicle(1155, "name", "world", []);
 
             // Act            
             // Assert
