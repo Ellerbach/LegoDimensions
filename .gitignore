@@ -253,6 +253,10 @@ paket-files/
 #sonarcloud
 .sonarqube
 
+# GitVersion local cache / validation tools
+.git/gitversion_cache/
+.tools/
+
 #SoundCloud
 *.sonarqube/
 
