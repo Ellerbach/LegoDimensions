@@ -161,15 +161,15 @@ namespace LegoDimensions.Portal
                 }
                 else if (arg.GetType() == typeof(ushort))
                 {
-                    Span<byte> bytes = stackalloc byte[2];
+                    byte[] bytes = new byte[2];
                     BinaryPrimitives.WriteUInt16BigEndian(bytes, (ushort)arg);
-                    payload.AddRange(bytes.ToArray());
+                    payload.AddRange(bytes);
                 }
                 else if (arg.GetType() == typeof(uint))
                 {
-                    Span<byte> bytes = stackalloc byte[4];
-                    BinaryPrimitives.WriteUInt32BigEndian(bytes, (ushort)arg);
-                    payload.AddRange(bytes.ToArray());
+                    byte[] bytes = new byte[4];
+                    BinaryPrimitives.WriteUInt32BigEndian(bytes, (uint)arg);
+                    payload.AddRange(bytes);
                 }
                 else if (arg.GetType() == typeof(Color))
                 {

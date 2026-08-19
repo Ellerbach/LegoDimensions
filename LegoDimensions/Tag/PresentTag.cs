@@ -22,7 +22,7 @@ namespace LegoDimensions.Portal
             Pad = pad;
             TagType = tagType;
             Index = index;
-            CardUid = cardUid;
+            CardUid = [.. cardUid];
         }
 
         /// <summary>

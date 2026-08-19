@@ -616,12 +616,25 @@ namespace LegoDimensions
         /// <inheritdoc/>
         public void Dispose()
         {
-            _cancelThread.Cancel();
-            // Make sure the thread is stopped
-            _readThread?.Join();
-            _portal.ReleaseInterface(_portal.Configs[0].Interfaces[0].Number);
-            _portal.Close();
-            _portal.Dispose();
+            if (_cancelThread is not null && !_cancelThread.IsCancellationRequested)
+            {
+                _cancelThread.Cancel();
+            }
+
+            // Make sure the thread is stopped before releasing native resources.
+            _readThread?.Join(2000);
+
+            LegoTagEvent = null;
+            _presentTags?.Clear();
+            _padTag?.Clear();
+            _commandId?.Clear();
+
+            if (_portal is not null)
+            {
+                _portal.ReleaseInterface(_portal.Configs[0].Interfaces[0].Number);
+                _portal.Close();
+                _portal.Dispose();
+            }
         }
     }
 }

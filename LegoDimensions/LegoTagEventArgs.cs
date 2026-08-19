@@ -32,7 +32,7 @@ namespace LegoDimensions
         /// <param name="index">The index on the portal.</param>
         public LegoTagEventArgs(Pad pad, bool present, byte[]? uuid, ILegoTag? tag, byte index)
         {
-            CardUid = uuid ?? [];
+            CardUid = uuid is null ? [] : [.. uuid];
             Pad = pad;
             Present = present;
             LegoTag = tag;
