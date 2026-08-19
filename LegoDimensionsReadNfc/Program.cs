@@ -6,11 +6,11 @@ using Iot.Device.Pn532;
 using Iot.Device.Pn532.ListPassive;
 using LegoDimensions.Tag;
 using LegoDimensionsReadNfc;
-using NStack;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Xml.Linq;
 using Terminal.Gui;
+using Terminal.Gui.Views;
 
 bool alreadySetup = false;
 
@@ -37,7 +37,7 @@ if (!alreadySetup)
     secondStep.NextButtonText = "Continue!";
 
     var names = SerialPort.GetPortNames();
-    ustring[] comPortsU = new ustring[names.Length];
+    string[] comPortsU = new string[names.Length];
     for (int i = 0; i < names.Length; i++)
     {
         comPortsU[i] = names[i];
@@ -66,7 +66,7 @@ else
 var thirdStep = new Wizard.WizardStep("Action step");
 wizard.AddStep(thirdStep);
 thirdStep.HelpText = "What do you want to do?";
-ustring[] actionChoices = new ustring[] { "_Erase tag", "_Read tag", "Read _all card", "_Write tag", "_Quit" };
+string[] actionChoices = new string[] { "_Erase tag", "_Read tag", "Read _all card", "_Write tag", "_Quit" };
 var lblChoices = new Label("What do you want to execute?") { AutoSize = true };
 thirdStep.Add(lblChoices);
 var actionChoice = new RadioGroup(actionChoices) { X = Pos.Right(lblChoices) + 1, Width = Dim.Fill() - 1 };

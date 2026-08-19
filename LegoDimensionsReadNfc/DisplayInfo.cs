@@ -7,16 +7,52 @@
 //      You can make changes to this file and they will not be overwritten when saving.
 //  </auto-generated>
 // -----------------------------------------------------------------------------
+using Terminal.Gui;
+using Terminal.Gui.Views;
+
 namespace LegoDimensionsReadNfc
 {
-    using Terminal.Gui;
-
-
-    public partial class DisplayInfo
+    public partial class DisplayInfo : Window
     {
+        private readonly Label lblCurrentAction;
+        private readonly TextView lblView;
+        private readonly Button btnClose;
+
         public DisplayInfo()
         {
-            InitializeComponent();            
+            Title = "Lego tag";
+            Width = Dim.Fill();
+            Height = Dim.Fill();
+
+            lblCurrentAction = new Label
+            {
+                X = 0,
+                Y = 0,
+                Width = Dim.Fill(),
+                Height = 1,
+                Text = "current action"
+            };
+
+            lblView = new TextView
+            {
+                X = 0,
+                Y = 1,
+                Width = Dim.Fill(),
+                Height = Dim.Fill(),
+                ReadOnly = true,
+                Text = "Heya"
+            };
+
+            btnClose = new Button
+            {
+                Text = "Close",
+                X = Pos.AnchorEnd(11),
+                Y = Pos.AnchorEnd(1),
+                Width = 9,
+                Height = 1
+            };
+
+            Add(lblCurrentAction, lblView, btnClose);
         }
 
         public Label Label => lblCurrentAction;
