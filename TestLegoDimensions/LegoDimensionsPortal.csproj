@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LibUsbDotNet" Version="3.0.102-alpha" />
+    <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
     <PackageReference Include="PInvoke.WinUsb" Version="0.7.124" />
   </ItemGroup>
 
