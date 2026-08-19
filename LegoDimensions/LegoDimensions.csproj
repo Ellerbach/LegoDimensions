@@ -15,11 +15,18 @@
     <Description>Package allows to use Lego Dimensions pad and tags from a PC on Windows or Linux.</Description>
     <PackageTags>lego dimensions nfc rfid tag pad</PackageTags>
     <Version Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</Version>
-    <PackageVersion>$(Version)</PackageVersion>
+    <PackageVersion Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</PackageVersion>
     <AssemblyVersion>$(GitVersion_AssemblySemVer)</AssemblyVersion>
     <FileVersion>$(GitVersion_AssemblySemFileVer)</FileVersion>
     <InformationalVersion>$(GitVersion_InformationalVersion)</InformationalVersion>
   </PropertyGroup>
+
+  <Target Name="NormalizePackageVersionForNuGet" BeforeTargets="Pack">
+    <PropertyGroup>
+      <Version Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</Version>
+      <PackageVersion Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</PackageVersion>
+    </PropertyGroup>
+  </Target>
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="" />
