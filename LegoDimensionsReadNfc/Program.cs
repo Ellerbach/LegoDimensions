@@ -3,6 +3,7 @@
 
 using System.Collections.ObjectModel;
 using System.IO.Ports;
+using LegoDimensionsReadNfc;
 using Terminal.Gui;
 using Terminal.Gui.App;
 using Terminal.Gui.ViewBase;
@@ -74,8 +75,8 @@ var openButton = new Button
 };
 openButton.Accepting += (_, _) =>
 {
-    var portIndex = portList.SelectedItem >= 0 ? portList.SelectedItem : 0;
-    var portName = portIndex < portItems.Count ? portItems[portIndex] : string.Empty;
+    var portIndex = portList.SelectedItem is int selectedPortIndex ? selectedPortIndex : 0;
+    var portName = portIndex >= 0 && portIndex < portItems.Count ? portItems[portIndex] : string.Empty;
     if (string.IsNullOrWhiteSpace(portName))
     {
         return;
@@ -83,8 +84,8 @@ openButton.Accepting += (_, _) =>
 
     NfcPn532.OpenComPort(portName);
 
-    var actionIndex = actionList.SelectedItem >= 0 ? actionList.SelectedItem : 0;
-    var actionName = actionIndex < actionItems.Count ? actionItems[actionIndex] : string.Empty;
+    var actionIndex = actionList.SelectedItem is int selectedActionIndex ? selectedActionIndex : 0;
+    var actionName = actionIndex >= 0 && actionIndex < actionItems.Count ? actionItems[actionIndex] : string.Empty;
     switch (actionName)
     {
         case "Erase tag":
