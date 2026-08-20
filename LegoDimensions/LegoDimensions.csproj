@@ -21,10 +21,13 @@
     <InformationalVersion>$(GitVersion_InformationalVersion)</InformationalVersion>
   </PropertyGroup>
 
-  <Target Name="NormalizePackageVersionForNuGet" BeforeTargets="Pack">
+  <Target Name="NormalizePackageVersionForNuGet" BeforeTargets="GenerateNuspec;Pack">
     <PropertyGroup>
       <Version Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</Version>
       <PackageVersion Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</PackageVersion>
+      <NuGetVersion Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</NuGetVersion>
+      <VersionPrefix Condition="'$(GitVersion_MajorMinorPatch)' != ''">$(GitVersion_MajorMinorPatch)</VersionPrefix>
+      <VersionSuffix></VersionSuffix>
     </PropertyGroup>
   </Target>
 
