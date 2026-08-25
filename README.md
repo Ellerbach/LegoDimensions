@@ -1,10 +1,33 @@
-# Lego Dimensions portal and tag .NET implementation
+# Lego Dimensions for .NET
 
-The aim of this work is to be able to use Lego Dimensions portal and tags outside of their original purpose. Idea is to automate the usage or the portal led, but as well be able to read tags, with or without the portal to automate other external elements from a simple Raspberry PI for example.
+[![NuGet](https://img.shields.io/nuget/v/LegoDimensions.svg)](https://www.nuget.org/packages/LegoDimensions)
+[![NuGet downloads](https://img.shields.io/nuget/dt/LegoDimensions.svg)](https://www.nuget.org/packages/LegoDimensions)
+[![Build](https://github.com/Ellerbach/LegoDimensions/actions/workflows/build.yml/badge.svg)](https://github.com/Ellerbach/LegoDimensions/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![Sponsor](https://img.shields.io/badge/sponsor-Ellerbach-ea4aaa?logo=githubsponsors)](https://github.com/sponsors/Ellerbach)
 
-You will find a detailed documentation of the Lego Dimensions protocol [here](https://github.com/Ellerbach/LegoDimensions/blob/main/LegoDimensionsProtocol.md). I built this documentation as I did not find anything that detailed.
+Bring your Lego Dimensions collection back to life with .NET. Control the portal lights, react to characters and vehicles placed on any pad, and read or write Lego tags from Windows, Linux, macOS, or a Raspberry Pi.
 
-French and want to join an amazing community of Adult fan of Lego (AFOL)? Check out [FreeLUG](https://www.freelug.org/), the best association for AFOL in France!
+```powershell
+dotnet add package LegoDimensions
+```
+
+Use this project to:
+
+* Detect tags as they are placed on or removed from the portal.
+* Identify Lego Dimensions characters, vehicles, and their worlds.
+* Set, flash, and fade each portal pad independently.
+* Read and write compatible NFC tags with the portal or a PN532 reader.
+* Build automations using the documented [Lego Dimensions protocol](LegoDimensionsProtocol.md).
+
+> [!NOTE]
+> All portal models except the Xbox versions are supported.
+
+## Sponsor this project
+
+If this library helps you revive a collection, build an installation, or create something new, [sponsor its continued development on GitHub](https://github.com/sponsors/Ellerbach). Sponsorship helps fund maintenance, hardware testing, documentation, and new features.
+
+French and looking for a community of adult fans of Lego (AFOL)? Join [FreeLUG](https://www.freelug.org/), the French Lego enthusiast association.
 
 ## Lego Dimensions portal
 
