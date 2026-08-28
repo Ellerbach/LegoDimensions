@@ -13,6 +13,11 @@ namespace LegoDimensions
         event EventHandler<LegoTagEventArgs>? LegoTagEvent;
 
         /// <summary>
+        /// Gets a value indicating whether this is an Xbox One portal.
+        /// </summary>
+        bool IsXboxPortal { get; }
+
+        /// <summary>
         /// Gets or sets the NFC reader enablement.
         /// </summary>
         bool NfcEnabled { get; set; }

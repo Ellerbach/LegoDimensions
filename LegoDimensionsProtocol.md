@@ -1,10 +1,14 @@
 # Lego Dimensions Communication Protocol
 
-This document aims to explain in details the communication protocol between the portal and the machine.
+This document explains the communication protocol between the portal and the machine.
 
-The portal or Lego Dimensions Starter Kit that are supported are the non XBox ones. The Xbox are currently not documented.
+This protocol applies directly to the non-Xbox portals. The Xbox One portal carries
+the same 32-byte messages inside Xbox GIP; see the dedicated
+[Xbox One portal protocol](XboxPortalProtocol.md) for its USB transport and required
+initialization order.
 
-The vendor ID `0x0E6F` is and the product ID `0x0241`. Any other like the Xbox one (0x0141) won't work with this protocol.
+The non-Xbox portal vendor ID is `0x0E6F` and its product ID is `0x0241`. The Xbox
+One portal uses product ID `0x0141` and requires the additional GIP transport layer.
 
 ## Generalities
 

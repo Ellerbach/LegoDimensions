@@ -121,7 +121,11 @@ namespace LegoDimensions.Portal
                         throw new ArgumentException("Invalid checksum");
                     }
 
-                    return new Message(MessageCommand.None, messageType, new byte[0]) { MessageSource = messageSource };
+                    return new Message(MessageCommand.None, messageType, new byte[0])
+                    {
+                        MessageId = messageSource == MessageSource.Portal ? readBuffer[2] : (byte)0,
+                        MessageSource = messageSource
+                    };
                 }
             }
             else

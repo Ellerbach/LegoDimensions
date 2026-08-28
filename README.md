@@ -19,9 +19,11 @@ Use this project to:
 * Set, flash, and fade each portal pad independently.
 * Read and write compatible NFC tags with the portal or a PN532 reader.
 * Build automations using the documented [Lego Dimensions protocol](LegoDimensionsProtocol.md).
+* Explore the separately documented [Xbox One portal protocol](XboxPortalProtocol.md).
 
 > [!NOTE]
-> All portal models except the Xbox versions are supported.
+> The main library supports standard portals and the Xbox One portal. The Xbox 360
+> portal has not ben tested.
 
 ## Sponsor this project
 
@@ -31,7 +33,9 @@ French and looking for a community of adult fans of Lego (AFOL)? Join [FreeLUG](
 
 ## Lego Dimensions portal
 
-The Lego Dimensions portals compatible with this implementation are all except the XBox ones.
+The implementation supports standard Lego Dimensions portals and the Xbox One
+portal. Xbox One uses a GIP transport layer but exposes the same `LegoPortal` API;
+see the [Xbox One portal protocol](XboxPortalProtocol.md) for details.
 
 In this document and in the code, the portal refers to the Lego Dimensions where you place the vehicles and characters.
 
@@ -47,6 +51,10 @@ For Windows users (7 and more)
 * Download [Zadig](https://zadig.akeo.ie/) and run it
 * Select "LEGO Reader V2.10" in the devices list (if necessary, use the Options>List All Devices menu)
 * Select `WinUSB` (libusb will also work) in the list at right of the green arrow and press the install button.
+
+For an Xbox One portal, select the Xbox Gaming Device with hardware ID
+`USB\VID_0E6F&PID_0141` and install WinUSB. The NuGet package includes
+the native libusb runtime used by the library.
 
 For Linux users
 

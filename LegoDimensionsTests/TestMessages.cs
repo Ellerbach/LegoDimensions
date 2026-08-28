@@ -45,6 +45,7 @@ namespace LegoDimensionsTests
             // This is just a confirmation of message received
             // Assert
             Assert.Equal(MessageType.Normal, message.MessageType);
+            Assert.Equal(3, message.MessageId);
             Assert.Equal(MessageCommand.None, message.MessageCommand);
         }
         [Fact]
