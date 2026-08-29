@@ -23,7 +23,7 @@ Use this project to:
 
 > [!NOTE]
 > The main library supports standard portals and the Xbox One portal. The Xbox 360
-> portal has not ben tested.
+> portal is not yet supported. Some experiments are in progress!
 
 ## Sponsor this project
 

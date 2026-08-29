@@ -175,6 +175,7 @@ namespace LegoDimensions
             _cancelThread = new CancellationTokenSource();
             _readThread = new Thread(ReadThread);
             _readThread.Start();
+
             // WakeUp the portal
             WakeUp();
         }

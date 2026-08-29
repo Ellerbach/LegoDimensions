@@ -6,6 +6,8 @@ using System.Buffers.Binary;
 
 const int VendorId = 0x0E6F;
 const int XboxProductId = 0x0141;
+const int Xbox360VendorId = 0x24C6;
+const int Xbox360ProductId = 0xFA01;
 const int TransferTimeout = 250;
 const int WakeProbeTimeout = 250;
 
@@ -22,13 +24,57 @@ catch (DllNotFoundException)
 }
 
 using var disposableContext = context;
-var devices = context.List()
+if (args.Contains("probe-360", StringComparer.OrdinalIgnoreCase))
+{
+    return await ProbeXbox360(context);
+}
+
+if (args.Contains("describe-360", StringComparer.OrdinalIgnoreCase))
+{
+    var xbox360Devices = context.List()
+        .Where(device => device.VendorId == Xbox360VendorId && device.ProductId == Xbox360ProductId)
+        .ToArray();
+    if (xbox360Devices.Length == 0)
+    {
+        Console.Error.WriteLine("Xbox 360 portal 24C6:FA01 was not found by libusb.");
+        return 1;
+    }
+
+    foreach (var xbox360Device in xbox360Devices)
+    {
+        Console.WriteLine($"Device {xbox360Device.VendorId:X4}:{xbox360Device.ProductId:X4}");
+        foreach (var xbox360Configuration in xbox360Device.Configs)
+        {
+            DumpDescriptor("  Configuration", xbox360Configuration);
+            foreach (var xbox360Interface in xbox360Configuration.Interfaces)
+            {
+                DumpDescriptor("    Interface", xbox360Interface);
+                foreach (var xbox360Endpoint in xbox360Interface.Endpoints)
+                {
+                    DumpDescriptor("      Endpoint", xbox360Endpoint);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+var connectedDevices = context.List();
+var devices = connectedDevices
     .Where(device => device.VendorId == VendorId && device.ProductId == XboxProductId)
     .ToArray();
 
 if (devices.Length == 0)
 {
+    if (connectedDevices.Any(device => device.VendorId == Xbox360VendorId && device.ProductId == Xbox360ProductId))
+    {
+        Console.WriteLine("Xbox One portal was not found; using Xbox 360 portal 24C6:FA01.");
+        return await ProbeXbox360(context);
+    }
+
     Console.Error.WriteLine("Xbox portal 0E6F:0141 was not found by libusb.");
+    Console.Error.WriteLine("Xbox 360 portal 24C6:FA01 was not found by libusb.");
     Console.Error.WriteLine("On Windows, its Xbox Gaming Device driver may need to be replaced with WinUSB using Zadig.");
     return 1;
 }
@@ -480,6 +526,311 @@ static void PrintLegoMessage(ReadOnlySpan<byte> payload)
     catch (ArgumentException exception)
     {
         Console.WriteLine($"  Invalid LEGO frame: {exception.Message}");
+    }
+}
+
+static void DumpDescriptor(string label, object descriptor)
+{
+    var values = descriptor.GetType().GetProperties()
+        .Where(property => property.PropertyType.IsPrimitive || property.PropertyType.IsEnum || property.PropertyType == typeof(string))
+        .Select(property => $"{property.Name}={property.GetValue(descriptor)}");
+    Console.WriteLine($"{label}: {string.Join(", ", values)}");
+}
+
+static async Task<int> ProbeXbox360(UsbContext context)
+{
+    var devices = context.List()
+        .Where(device => device.VendorId == Xbox360VendorId && device.ProductId == Xbox360ProductId)
+        .ToArray();
+    if (devices.Length == 0)
+    {
+        Console.Error.WriteLine("Xbox 360 portal 24C6:FA01 was not found by libusb.");
+        return 1;
+    }
+
+    using var device = devices[0];
+    try
+    {
+        device.Open();
+    }
+    catch (UsbException exception)
+    {
+        Console.Error.WriteLine($"Xbox 360 portal 24C6:FA01 could not be opened: {exception.Message}");
+        return 3;
+    }
+
+    var configuration = device.Configs[0];
+    try
+    {
+        device.SetConfiguration(configuration.ConfigurationValue);
+    }
+    catch (UsbException exception)
+    {
+        Console.WriteLine($"USB configuration {configuration.ConfigurationValue} could not be selected; continuing: {exception.Message}");
+    }
+
+    var interfaceNumber = configuration.Interfaces[0].Number;
+    var securityInterfaceNumber = configuration.Interfaces.Single(interfaceInfo => interfaceInfo.Number == 3).Number;
+    device.ClaimInterface(interfaceNumber);
+    var reader = device.OpenEndpointReader(ReadEndpointID.Ep01, UsbEndpointReader.DefReadBufferSize, EndpointType.Interrupt);
+    var writer = device.OpenEndpointWriter(WriteEndpointID.Ep01, EndpointType.Interrupt);
+    device.ClaimInterface(securityInterfaceNumber);
+    using var cancellation = new CancellationTokenSource();
+    using var controlTransferGate = new SemaphoreSlim(1, 1);
+    using var interruptReadsEnabled = new ManualResetEventSlim(true);
+    var readTask = Task.Run(() => ReadRawPackets(reader, controlTransferGate, interruptReadsEnabled, cancellation.Token));
+    byte messageId = 0;
+
+    Console.WriteLine($"Opened Xbox 360 portal 24C6:FA01, interface {interfaceNumber}, endpoints 81/01.");
+    Console.WriteLine("Listening for raw input. Type 'help' for commands.");
+
+    try
+    {
+        while (true)
+        {
+            Console.Write("360> ");
+            var input = Console.ReadLine();
+            if (input is null || input.Equals("quit", StringComparison.OrdinalIgnoreCase) || input.Equals("exit", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            var parts = input.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                switch (parts[0].ToLowerInvariant())
+                {
+                    case "help":
+                        Console.WriteLine("send <hex>                              Send exact bytes to endpoint 01");
+                        Console.WriteLine("wake                                    Send an Xbox 360-wrapped LEGO wake frame");
+                        Console.WriteLine("xinput-led                              Send Xbox 360 LED command 01-03-06");
+                        Console.WriteLine("xsm3-auth                               Complete Xbox 360 security authentication");
+                        Console.WriteLine("control-in <type request value index n> Issue a vendor control-IN request; numbers are hex");
+                        Console.WriteLine("control-out <type request value index hex> Issue a vendor control-OUT request; numbers are hex");
+                        Console.WriteLine("quit                                    Close the device and exit");
+                        break;
+                    case "send":
+                        Send(writer, ParseHex(parts.ElementAtOrDefault(1)));
+                        break;
+                    case "wake":
+                        var wake = new Message(MessageCommand.Wake);
+                        wake.AddPayload("(c) LEGO 2014");
+                        var wakeFrame = wake.GetBytes(NextMessageId(ref messageId));
+                        Send(writer, Xbox360Transport.WrapLegoFrame(wakeFrame));
+                        break;
+                    case "xinput-led":
+                        Send(writer, [0x01, 0x03, 0x06]);
+                        break;
+                    case "xsm3-auth":
+                        AuthenticateXbox360(device, controlTransferGate, interruptReadsEnabled);
+                        break;
+                    case "control-in":
+                        SendControlIn(device, controlTransferGate, interruptReadsEnabled, parts.ElementAtOrDefault(1));
+                        break;
+                    case "control-out":
+                        SendControlOut(device, controlTransferGate, interruptReadsEnabled, parts.ElementAtOrDefault(1));
+                        break;
+                    default:
+                        Console.WriteLine("Unknown command. Type 'help' for usage.");
+                        break;
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine($"Command error: {exception.Message}");
+            }
+        }
+    }
+    finally
+    {
+        cancellation.Cancel();
+        await readTask;
+        device.ReleaseInterface(securityInterfaceNumber);
+        device.ReleaseInterface(interfaceNumber);
+        device.Close();
+    }
+
+    return 0;
+}
+
+static void ReadRawPackets(UsbEndpointReader reader, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled, CancellationToken cancellationToken)
+{
+    var buffer = new byte[1024];
+    var consecutiveNotFoundErrors = 0;
+    while (!cancellationToken.IsCancellationRequested)
+    {
+        interruptReadsEnabled.Wait(cancellationToken);
+        controlTransferGate.Wait(cancellationToken);
+        Error error;
+        int bytesRead;
+        try
+        {
+            error = reader.Read(buffer, TransferTimeout, out bytesRead);
+        }
+        finally
+        {
+            controlTransferGate.Release();
+        }
+
+        if (error == Error.Timeout)
+        {
+            consecutiveNotFoundErrors = 0;
+            continue;
+        }
+
+        Console.WriteLine(error == Error.Success
+            ? $"\nRX ({bytesRead}): {Convert.ToHexString(buffer, 0, bytesRead)}"
+            : $"\nRX error: {error}, bytes={bytesRead}");
+        if (error == Error.NotFound && ++consecutiveNotFoundErrors < 3)
+        {
+            continue;
+        }
+
+        if (error != Error.Success)
+        {
+            break;
+        }
+
+        consecutiveNotFoundErrors = 0;
+    }
+}
+
+static void SendControlIn(IUsbDevice device, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled, string? arguments)
+{
+    var fields = arguments?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+    if (fields.Length != 5 || fields.Any(field => !int.TryParse(field, System.Globalization.NumberStyles.HexNumber, null, out _)))
+    {
+        throw new ArgumentException("Usage: control-in <request-type request value index length>; all numbers are hex");
+    }
+
+    var values = fields.Select(field => Convert.ToInt32(field, 16)).ToArray();
+    var buffer = ControlIn(device, controlTransferGate, interruptReadsEnabled,
+        (byte)values[0], (byte)values[1], values[2], values[3], values[4]);
+
+    Console.WriteLine($"CONTROL RX ({buffer.Length}): {Convert.ToHexString(buffer)}");
+}
+
+static void SendControlOut(IUsbDevice device, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled, string? arguments)
+{
+    var fields = arguments?.Split(' ', 5, StringSplitOptions.RemoveEmptyEntries) ?? [];
+    if (fields.Length != 5 || fields.Take(4).Any(field => !int.TryParse(field, System.Globalization.NumberStyles.HexNumber, null, out _)))
+    {
+        throw new ArgumentException("Usage: control-out <request-type request value index hex>; all numbers are hex");
+    }
+
+    var values = fields.Take(4).Select(field => Convert.ToInt32(field, 16)).ToArray();
+    var buffer = ParseHex(fields[4]);
+    ControlOut(device, controlTransferGate, interruptReadsEnabled,
+        (byte)values[0], (byte)values[1], values[2], values[3], buffer);
+
+    Console.WriteLine($"CONTROL TX ({buffer.Length}): {Convert.ToHexString(buffer)}");
+}
+
+static void AuthenticateXbox360(IUsbDevice device, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled)
+{
+    var challenge = Convert.FromHexString(
+        "094000001CDEEB918766B0E3C0B26C056DC867E2E7D6A5DC716F211FB43228A0C289");
+
+    var identity = ControlIn(device, controlTransferGate, interruptReadsEnabled, 0xC1, 0x81, 0x5B17, 0x0103, 0x1D);
+    Console.WriteLine($"XSM3 81 RX: {Convert.ToHexString(identity)}");
+
+    ControlOut(device, controlTransferGate, interruptReadsEnabled, 0x41, 0x82, 0x0003, 0x0103, challenge);
+    Console.WriteLine($"XSM3 82 TX: {Convert.ToHexString(challenge)}");
+    WaitForXbox360SecurityResponse(device, controlTransferGate, interruptReadsEnabled);
+
+    var challengeResponse = ControlIn(device, controlTransferGate, interruptReadsEnabled, 0xC1, 0x83, 0x5C28, 0x0103, 0x2E);
+    Console.WriteLine($"XSM3 83 RX: {Convert.ToHexString(challengeResponse)}");
+    var session = Xbox360Xsm3Host.Create(identity, challenge, challengeResponse);
+
+    var verify = session.CreateVerifyPacket();
+    ControlOut(device, controlTransferGate, interruptReadsEnabled, 0x41, 0x87, 0x0003, 0x0103, verify);
+    Console.WriteLine($"XSM3 87 TX: {Convert.ToHexString(verify)}");
+    WaitForXbox360SecurityResponse(device, controlTransferGate, interruptReadsEnabled);
+
+    var verifyResponse = ControlIn(device, controlTransferGate, interruptReadsEnabled, 0xC1, 0x83, 0x5C10, 0x0103, 0x16);
+    Console.WriteLine($"XSM3 83 RX: {Convert.ToHexString(verifyResponse)}");
+    session.ValidateFinalResponse(verifyResponse);
+
+    _ = ControlIn(device, controlTransferGate, interruptReadsEnabled, 0xC1, 0x84, 0x0003, 0x0103, 0);
+    Console.WriteLine("XSM3 authentication completed and verified.");
+}
+
+static void WaitForXbox360SecurityResponse(IUsbDevice device, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled)
+{
+    var deadline = Environment.TickCount64 + 2000;
+    while (Environment.TickCount64 < deadline)
+    {
+        var status = ControlIn(device, controlTransferGate, interruptReadsEnabled, 0xC1, 0x86, 0x0000, 0x0103, 2);
+        Console.WriteLine($"XSM3 86 RX: {Convert.ToHexString(status)}");
+        if (status.Length == 2 && status[0] == 0x02 && status[1] == 0x00)
+        {
+            return;
+        }
+
+        Thread.Sleep(25);
+    }
+
+    throw new TimeoutException("XSM3 response did not become ready within 2 seconds.");
+}
+
+static byte[] ControlIn(
+    IUsbDevice device,
+    SemaphoreSlim controlTransferGate,
+    ManualResetEventSlim interruptReadsEnabled,
+    byte requestType,
+    byte request,
+    int value,
+    int index,
+    int length)
+{
+    var buffer = new byte[length];
+    ControlTransfer(device, controlTransferGate, interruptReadsEnabled,
+        new UsbSetupPacket(requestType, request, value, index, length), buffer);
+    return buffer;
+}
+
+static void ControlOut(
+    IUsbDevice device,
+    SemaphoreSlim controlTransferGate,
+    ManualResetEventSlim interruptReadsEnabled,
+    byte requestType,
+    byte request,
+    int value,
+    int index,
+    byte[] buffer)
+{
+    ControlTransfer(device, controlTransferGate, interruptReadsEnabled,
+        new UsbSetupPacket(requestType, request, value, index, buffer.Length), buffer);
+}
+
+static void ControlTransfer(
+    IUsbDevice device,
+    SemaphoreSlim controlTransferGate,
+    ManualResetEventSlim interruptReadsEnabled,
+    UsbSetupPacket setupPacket,
+    byte[] buffer)
+{
+    interruptReadsEnabled.Reset();
+    try
+    {
+        controlTransferGate.Wait();
+        try
+        {
+            device.ControlTransfer(setupPacket, buffer, 0, buffer.Length);
+        }
+        finally
+        {
+            controlTransferGate.Release();
+        }
+    }
+    finally
+    {
+        interruptReadsEnabled.Set();
     }
 }
 
