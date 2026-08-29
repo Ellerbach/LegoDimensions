@@ -18,9 +18,11 @@ namespace LegoDimensions
     {
         // Constants
         private const int ProductId = 0x0241;
+        private const int XboxOneProductId = 0x0141;
         private const int VendorId = 0x0E6F;
         private const int ReadWriteTimeout = 1000;
         private const int ReceiveTimeout = 2000;
+        private const int XboxWakeProbeTimeout = 250;
 
         // This needs to be static to keep the context otherwise, the app will close it
         private static UsbContext? context;
@@ -34,6 +36,10 @@ namespace LegoDimensions
         private CancellationTokenSource _cancelThread;
         private List<PresentTag> _presentTags = new List<PresentTag>();
         private bool _nfcEnabled = true;
+        private readonly bool _isXboxPortal;
+        private readonly object _writeLock = new object();
+        private readonly object _commandLock = new object();
+        private byte _gipSequence = 1;
 
         // We do have only 3 Pads
         // This one is to store the last message ID request for details
@@ -72,7 +78,8 @@ namespace LegoDimensions
             var usbDeviceCollection = context.List();
 
             //Narrow down the device by vendor and pid
-            var selectedDevice = usbDeviceCollection.Where(d => d.ProductId == ProductId && d.VendorId == VendorId);
+            var selectedDevice = usbDeviceCollection.Where(d =>
+                d.VendorId == VendorId && (d.ProductId == ProductId || d.ProductId == XboxOneProductId));
 
             return selectedDevice.ToArray();
         }
@@ -111,6 +118,12 @@ namespace LegoDimensions
         /// </summary>
         public IUsbDevice UsbDevice => _portal;
 
+        /// <inheritdoc/>
+        public bool IsXboxPortal => _isXboxPortal;
+
+        /// <summary>
+        /// Gets the opaque device-specific bytes returned by the wake command.
+        /// </summary>
         public byte[] SerialNumber { get; internal set; } = [];
 
         /// <summary>
@@ -121,6 +134,7 @@ namespace LegoDimensions
         public LegoPortal(IUsbDevice device, int id = 0)
         {
             _portal = device;
+            _isXboxPortal = device.ProductId == XboxOneProductId;
             Id = id;
             //Open the device
             _portal.Open();
@@ -131,6 +145,18 @@ namespace LegoDimensions
                 Imports.SetAutoDetachKernelDriver(_portal.DeviceHandle, 1);
             }
 
+            if (_isXboxPortal)
+            {
+                try
+                {
+                    _portal.SetConfiguration(_portal.Configs[0].ConfigurationValue);
+                }
+                catch (UsbException)
+                {
+                    // Continue when the active configuration cannot be selected again.
+                }
+            }
+
             //Get the first config number of the interface
             _portal.ClaimInterface(_portal.Configs[0].Interfaces[0].Number);
 
@@ -138,16 +164,32 @@ namespace LegoDimensions
             _endpointWriter = _portal.OpenEndpointWriter(WriteEndpointID.Ep01);
             _endpointReader = _portal.OpenEndpointReader(ReadEndpointID.Ep01);
 
-            // Read the first 32 bytes
-            var readBuffer = new byte[32];
-            _endpointReader.Read(readBuffer, ReadWriteTimeout, out var bytesRead);
+            if (!_isXboxPortal)
+            {
+                // Read the first 32 bytes
+                var readBuffer = new byte[32];
+                _endpointReader.Read(readBuffer, ReadWriteTimeout, out _);
+            }
 
             // Start the read thread
             _cancelThread = new CancellationTokenSource();
-            _readThread = new Thread(ReadThread);
+            _readThread = new Thread(ReadThread)
+            {
+                // Must not keep the process alive if construction fails before Dispose can be called.
+                IsBackground = true
+            };
             _readThread.Start();
-            // WakeUp the portal
-            WakeUp();
+
+            try
+            {
+                // WakeUp the portal
+                WakeUp();
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>
@@ -158,17 +200,29 @@ namespace LegoDimensions
             _messageId = 0;
             var getSerial = new ManualResetEvent(false);
             SerialNumber = new byte[0];
-            var commandId = new CommandId(SendMessage(message), MessageCommand.Wake, getSerial);
-            _commandId.Add(commandId);
+            var commandId = SendTrackedMessage(message, MessageCommand.Wake, getSerial);
 
-            getSerial.WaitOne(ReceiveTimeout, true);
+            var wakeReceived = _isXboxPortal && getSerial.WaitOne(XboxWakeProbeTimeout, true);
+            if (_isXboxPortal && !wakeReceived)
+            {
+                WriteUsbPacket(XboxGipTransport.CreatePacket(
+                    XboxGipTransport.AuthenticateCommand,
+                    0x20,
+                    IncreaseGipSequence(),
+                    [0x01, 0x00]));
+            }
+
+            if (!wakeReceived)
+            {
+                getSerial.WaitOne(ReceiveTimeout, true);
+            }
 
             if (commandId.Result != null)
             {
                 SerialNumber = (byte[])commandId.Result;
             }
 
-            _commandId.Remove(commandId);
+            RemoveCommand(commandId);
             // TODO: investigate seeding
             //message = new Message(MessageCommand.Seed);
             //message.AddPayload(new byte[] { 0xaa, 0x6F, 0xC8, 0xCD, 0x21, 0x1E, 0xF8, 0xCE });
@@ -189,8 +243,7 @@ namespace LegoDimensions
             Message message = new Message(MessageCommand.GetColor);
             message.AddPayload(pad);
             var getColor = new ManualResetEvent(false);
-            var commandId = new CommandId(SendMessage(message), MessageCommand.GetColor, getColor);
-            _commandId.Add(commandId);
+            var commandId = SendTrackedMessage(message, MessageCommand.GetColor, getColor);
             // In case we won't get any color, use the default black one
             Color padColor = Color.Black;
             // Wait maximum 2 seconds
@@ -201,7 +254,7 @@ namespace LegoDimensions
                 padColor = (Color)commandId.Result;
             }
 
-            _commandId.Remove(commandId);
+            RemoveCommand(commandId);
 
             return padColor;
         }
@@ -211,14 +264,13 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.ColorAll);
             message.AddPayload(true, padCenter, true, padLeft, true, padRight);
+            SendMessage(message);
         }
 
         /// <inheritdoc/>
         public void SwitchOffAll()
         {
-            Message message = new Message(MessageCommand.ColorAll);
-            message.AddPayload(false, Color.Black, false, Color.Black, false, Color.Black);
-            SendMessage(message);
+            SetColor(Pad.All, Color.Black);
         }
 
         /// <inheritdoc/>
@@ -276,8 +328,7 @@ namespace LegoDimensions
             Message message = new Message(MessageCommand.Read);
             message.AddPayload(index, page);
             var getRead = new ManualResetEvent(false);
-            var commandId = new CommandId(SendMessage(message), MessageCommand.Read, getRead);
-            _commandId.Add(commandId);
+            var commandId = SendTrackedMessage(message, MessageCommand.Read, getRead);
             // In case we won't get any color, use the default black one
             byte[] readBytes = new byte[0];
             // Wait maximum 2 seconds
@@ -288,7 +339,7 @@ namespace LegoDimensions
                 readBytes = (byte[])commandId.Result;
             }
 
-            _commandId.Remove(commandId);
+            RemoveCommand(commandId);
 
             return readBytes;
         }
@@ -310,8 +361,7 @@ namespace LegoDimensions
             Message message = new Message(MessageCommand.Write);
             message.AddPayload(index, page, bytes);
             var getWrite = new ManualResetEvent(false);
-            var commandId = new CommandId(SendMessage(message), MessageCommand.Write, getWrite);
-            _commandId.Add(commandId);
+            var commandId = SendTrackedMessage(message, MessageCommand.Write, getWrite);
             // In case we won't get any color, use the default black one
             bool success = false;
             // Wait maximum 2 seconds
@@ -322,7 +372,7 @@ namespace LegoDimensions
                 success = (bool)commandId.Result;
             }
 
-            _commandId.Remove(commandId);
+            RemoveCommand(commandId);
 
             return success;
         }
@@ -337,8 +387,7 @@ namespace LegoDimensions
             Message message = new Message(MessageCommand.Model);
             message.AddPayload(encryoptedIndex);
             var getRead = new ManualResetEvent(false);
-            var commandId = new CommandId(SendMessage(message), MessageCommand.Model, getRead);
-            _commandId.Add(commandId);
+            var commandId = SendTrackedMessage(message, MessageCommand.Model, getRead);
             // In case we won't get any color, use the default black one
             byte[] readBytes = new byte[0];
             // Wait maximum 2 seconds
@@ -349,7 +398,7 @@ namespace LegoDimensions
                 readBytes = (byte[])commandId.Result;
             }
 
-            _commandId.Remove(commandId);
+            RemoveCommand(commandId);
 
             return readBytes;
         }
@@ -362,8 +411,7 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.Challenge);
             var getChallenge = new ManualResetEvent(false);
-            var commandId = new CommandId(SendMessage(message), MessageCommand.Challenge, getChallenge);
-            _commandId.Add(commandId);
+            var commandId = SendTrackedMessage(message, MessageCommand.Challenge, getChallenge);
             // In case we won't get any color, use the default black one
             byte[] readBytes = new byte[0];
             // Wait maximum 2 seconds
@@ -374,7 +422,7 @@ namespace LegoDimensions
                 readBytes = (byte[])commandId.Result;
             }
 
-            _commandId.Remove(commandId);
+            RemoveCommand(commandId);
 
             return readBytes;
         }
@@ -383,13 +431,12 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.TagList);
             var getTagList = new ManualResetEvent(false);
-            var commandId = new CommandId(SendMessage(message), MessageCommand.TagList, getTagList);
-            _commandId.Add(commandId);
+            var commandId = SendTrackedMessage(message, MessageCommand.TagList, getTagList);
             while (!getTagList.WaitOne(ReceiveTimeout))
             { }
 
             // We don't do anything as we manage the result globally
-            _commandId.Remove(commandId);
+            RemoveCommand(commandId);
 
             return _presentTags;
         }
@@ -423,32 +470,52 @@ namespace LegoDimensions
         /// <returns>The message ID for the request.</returns>
         public byte SendMessage(Message message, byte messageId = 0)
         {
-            var bytes = message.GetBytes(messageId == 0 ? IncreaseMessageId() : messageId);
-            _endpointWriter.Write(bytes, ReadWriteTimeout, out int numBytes);
-            // Assume it's awake if we send 32 bytes properly
-            Debug.WriteLine($"SND: {BitConverter.ToString(bytes)}");
-            return messageId == 0 ? _messageId : messageId;
+            var id = messageId == 0 ? IncreaseMessageId() : messageId;
+            var legoMessage = message.GetBytes(id);
+            var bytes = _isXboxPortal
+                ? XboxGipTransport.CreatePacket(XboxGipTransport.LegoGatewayCommand, 0x00, IncreaseGipSequence(), legoMessage)
+                : legoMessage;
+            WriteUsbPacket(bytes);
+            return id;
         }
 
         private void ReadThread(object? obj)
         {
-            // Read is always 32 bytes
-            var readBuffer = new byte[32];
+            var readBuffer = new byte[_isXboxPortal ? 1024 : 32];
             int bytesRead;
 
             while (!_cancelThread.IsCancellationRequested)
             {
                 try
                 {
-                    _endpointReader.Read(readBuffer, ReadWriteTimeout, out bytesRead);
-                    if (bytesRead > 0)
+                    var error = _endpointReader.Read(readBuffer, ReadWriteTimeout, out bytesRead);
+                    if (error == Error.Timeout)
                     {
-                        Debug.WriteLine($"REC: {BitConverter.ToString(readBuffer)}");
+                        continue;
                     }
 
-                    if (bytesRead == 32)
+                    if (error != Error.Success)
                     {
-                        var message = Message.CreateFromBuffer(readBuffer, MessageSource.Portal);
+                        Debug.WriteLine($"USB read error: {error}");
+                        if (error == Error.NoDevice || error == Error.NotFound)
+                        {
+                            break;
+                        }
+
+                        continue;
+                    }
+
+                    var bufferedBytes = !_isXboxPortal && bytesRead == readBuffer.Length + 1
+                        ? readBuffer.Length
+                        : bytesRead;
+                    if (bufferedBytes > 0)
+                    {
+                        Debug.WriteLine($"REC: {BitConverter.ToString(readBuffer, 0, bufferedBytes)}");
+                    }
+
+                    foreach (var legoMessage in ExtractLegoMessages(readBuffer, bufferedBytes))
+                    {
+                        var message = Message.CreateFromBuffer(legoMessage, MessageSource.Portal);
                         if (message.MessageType == MessageType.Event)
                         {
                             // In the case of an event the Message Type event, all is in the payload
@@ -480,8 +547,7 @@ namespace LegoDimensions
                                         // Ask for more wuth the read command for 0x24
                                         var msgToSend = new Message(MessageCommand.Read);
                                         msgToSend.AddPayload(padIndex, (byte)0x24);
-                                        legoTag.LastMessageId = SendMessage(msgToSend);
-                                        _commandId.Add(new CommandId(legoTag.LastMessageId, MessageCommand.Read, null));
+                                        legoTag.LastMessageId = SendTrackedMessage(msgToSend, MessageCommand.Read, null).MessageId;
                                     }
                                     else
                                     {
@@ -513,7 +579,11 @@ namespace LegoDimensions
                         else if (message.MessageType == MessageType.Normal)
                         {
                             // In case the paylod is 17, then we do have a response to a read command
-                            var cmdId = _commandId.Where(m => m.MessageId == _messageId).FirstOrDefault();
+                            CommandId? cmdId;
+                            lock (_commandLock)
+                            {
+                                cmdId = _commandId.FirstOrDefault(m => m.MessageId == message.MessageId);
+                            }
                             if (message.MessageCommand == MessageCommand.None && cmdId != null && cmdId.MessageCommand == MessageCommand.Read)
                             {
                                 // In this case the request is coming from the event
@@ -541,6 +611,7 @@ namespace LegoDimensions
                                     }
 
                                     LegoTagEvent?.Invoke(this, new LegoTagEventArgs(legoTag));
+                                    RemoveCommand(cmdId);
                                 }
                                 else
                                 {
@@ -611,6 +682,85 @@ namespace LegoDimensions
         {
             _messageId = (byte)(_messageId == 255 ? 1 : ++_messageId);
             return _messageId;
+        }
+
+        private CommandId SendTrackedMessage(Message message, MessageCommand command, ManualResetEvent? resetEvent)
+        {
+            var commandId = new CommandId(IncreaseMessageId(), command, resetEvent);
+            lock (_commandLock)
+            {
+                _commandId.Add(commandId);
+            }
+
+            try
+            {
+                SendMessage(message, commandId.MessageId);
+                return commandId;
+            }
+            catch
+            {
+                RemoveCommand(commandId);
+                throw;
+            }
+        }
+
+        private void RemoveCommand(CommandId commandId)
+        {
+            lock (_commandLock)
+            {
+                _commandId.Remove(commandId);
+            }
+        }
+
+        private byte IncreaseGipSequence()
+        {
+            var sequence = _gipSequence++;
+            if (_gipSequence == 0)
+            {
+                _gipSequence = 1;
+            }
+
+            return sequence;
+        }
+
+        private IEnumerable<byte[]> ExtractLegoMessages(byte[] buffer, int bytesRead)
+        {
+            if (!_isXboxPortal)
+            {
+                if (bytesRead == 32)
+                {
+                    yield return buffer[..32];
+                }
+
+                yield break;
+            }
+
+            var offset = 0;
+            while (offset < bytesRead && XboxGipTransport.TryGetPacket(buffer.AsSpan(offset, bytesRead - offset), out var packetLength, out var command, out var payload))
+            {
+                if (command == XboxGipTransport.LegoGatewayCommand && payload.Length == 32)
+                {
+                    yield return payload.ToArray();
+                }
+
+                offset += packetLength;
+            }
+        }
+
+        private void WriteUsbPacket(byte[] bytes)
+        {
+            lock (_writeLock)
+            {
+                var error = _endpointWriter.Write(bytes, ReadWriteTimeout, out var bytesWritten);
+                var complete = bytesWritten == bytes.Length ||
+                    (!_isXboxPortal && bytes.Length == 32 && bytesWritten == 33);
+                if (error != Error.Success || !complete)
+                {
+                    throw new IOException($"USB endpoint write failed with {error}; reported {bytesWritten} for {bytes.Length} bytes.");
+                }
+            }
+
+            Debug.WriteLine($"SND: {BitConverter.ToString(bytes)}");
         }
 
         /// <inheritdoc/>

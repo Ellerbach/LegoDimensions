@@ -8,22 +8,22 @@ using LegoDimensions.Tag;
 List<LegoTagEventArgs> tags = new List<LegoTagEventArgs>();
 
 var portal = LegoPortal.GetFirstPortal();
-Console.WriteLine($"Portal found, serail number: {BitConverter.ToString(portal.SerialNumber)}");
+Console.WriteLine($"Portal found, serail number: {BitConverter.ToString(portal.SerialNumber)}, Xbox portal: {portal.IsXboxPortal}");
 // If you don't want to get the tag details on the event, you can disable it
 //portal.GetTagDetails = false;
 portal.LegoTagEvent += PortalLegoTagEvent;
 
 //TestColor0xC0();
 //TestGetColor0xC1();
-//TestSetColorAllPads0xC8();
+TestSetColorAllPads0xC8();
 //TestFlashPad0xCC3();
 //TestFlashAllPads0xCC7();
 //TestFade0xC2();
 //TestFadeAll0xC6();
 //TestFadeRandom0xC5();
-//TestReadTag();
+TestReadTag();
 //TestPasswordAndRead();
-//TestExistingCommùands();
+//TestExistingCommands();
 //TestGetChallenge();
 //TestWrite();
 
@@ -189,7 +189,7 @@ void TestPasswordAndRead()
     TestReadTag();
 }
 
-void TestExistingCommùands()
+void TestExistingCommands()
 {
     for (int i = 0; i < 255; i++)
     {
