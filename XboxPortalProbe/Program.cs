@@ -111,8 +111,7 @@ var interfaceNumber = configuration.Interfaces[0].Number;
 device.ClaimInterface(interfaceNumber);
 
 var reader = device.OpenEndpointReader(ReadEndpointID.Ep01);
-var writer = device.OpenEndpointWriter(WriteEndpointID.Ep01);
-var writeLock = new object();
+var writer = new SynchronizedUsbWriter(device.OpenEndpointWriter(WriteEndpointID.Ep01));
 using var cancellation = new CancellationTokenSource();
 using var protocolState = new GipProtocolState();
 byte messageId = 0;
@@ -121,7 +120,7 @@ byte gipSequence = 1;
 Console.WriteLine($"Opened Xbox portal {VendorId:X4}:{XboxProductId:X4}, interface {interfaceNumber}, endpoints 81/01.");
 Console.WriteLine("Incoming packets will be printed as hex. Type 'help' for commands.");
 
-var readTask = Task.Run(() => ReadPackets(reader, writer, writeLock, protocolState, cancellation.Token));
+var readTask = Task.Run(() => ReadPackets(reader, writer, protocolState, cancellation.Token));
 
 try
 {
@@ -250,7 +249,7 @@ finally
 
 return 0;
 
-static void ReadPackets(UsbEndpointReader reader, UsbEndpointWriter writer, object writeLock, GipProtocolState protocolState, CancellationToken cancellationToken)
+static void ReadPackets(UsbEndpointReader reader, SynchronizedUsbWriter writer, GipProtocolState protocolState, CancellationToken cancellationToken)
 {
     var buffer = new byte[1024];
     byte[]? previousPacket = null;
@@ -302,7 +301,7 @@ static void ReadPackets(UsbEndpointReader reader, UsbEndpointWriter writer, obje
 
                     Console.WriteLine($"\nRX ({packetLength}): {Convert.ToHexString(packet)}");
                     PrintGipPacket(packet);
-                    ProcessGipChunk(packet, writer, writeLock, protocolState, ref chunkAssembly);
+                    ProcessGipChunk(packet, writer, protocolState, ref chunkAssembly);
                     previousPacket = packet;
                     repeatCount = 0;
                 }
@@ -316,19 +315,19 @@ static void ReadPackets(UsbEndpointReader reader, UsbEndpointWriter writer, obje
     }
 }
 
-static void ProcessGipChunk(byte[] packet, UsbEndpointWriter writer, object writeLock, GipProtocolState protocolState, ref GipChunkAssembly? assembly)
+static void ProcessGipChunk(byte[] packet, SynchronizedUsbWriter writer, GipProtocolState protocolState, ref GipChunkAssembly? assembly)
 {
     if (!TryReadGipHeader(packet, out var header))
     {
         return;
     }
 
-    if ((header.Options & 0x40) != 0)
+    if ((header.Options & 0xC0) == 0xC0)
     {
         assembly = new GipChunkAssembly(header.Command, header.ChunkValue, packet.AsSpan(header.HeaderLength, header.PayloadLength));
         Console.WriteLine($"  Chunk transfer: {assembly.Received}/{assembly.Data.Length} byte(s)");
     }
-    else if ((header.Options & 0x80) != 0 && assembly is not null && assembly.Command == header.Command)
+    else if ((header.Options & 0x80) != 0 && (header.Options & 0x40) == 0 && assembly is not null && assembly.Command == header.Command)
     {
         assembly.Add(header.ChunkValue, packet.AsSpan(header.HeaderLength, header.PayloadLength));
         Console.WriteLine($"  Chunk transfer: {assembly.Received}/{assembly.Data.Length} byte(s)");
@@ -338,7 +337,7 @@ static void ProcessGipChunk(byte[] packet, UsbEndpointWriter writer, object writ
     {
         var received = (header.Options & 0x40) != 0 ? header.PayloadLength : header.ChunkValue + header.PayloadLength;
         var total = assembly?.Data.Length ?? received;
-        SendGipAcknowledgement(writer, writeLock, header, received, Math.Max(0, total - received));
+        SendGipAcknowledgement(writer, header, received, Math.Max(0, total - received));
     }
 
     if (assembly is not null && assembly.Received == assembly.Data.Length)
@@ -386,7 +385,7 @@ static void ObserveProtocolPacket(ReadOnlySpan<byte> packet, GipProtocolState pr
     }
 }
 
-static void SendGipAcknowledgement(UsbEndpointWriter writer, object writeLock, GipHeader acknowledged, int received, int remaining)
+static void SendGipAcknowledgement(SynchronizedUsbWriter writer, GipHeader acknowledged, int received, int remaining)
 {
     byte[] payload = new byte[9];
     payload[1] = acknowledged.Command;
@@ -395,10 +394,7 @@ static void SendGipAcknowledgement(UsbEndpointWriter writer, object writeLock, G
     BinaryPrimitives.WriteUInt16LittleEndian(payload.AsSpan(7), checked((ushort)remaining));
     byte[] packet = [0x01, (byte)(0x20 | (acknowledged.Options & 0x0F)), acknowledged.Sequence, 0x09, .. payload];
 
-    lock (writeLock)
-    {
-        Send(writer, packet);
-    }
+    Send(writer, packet);
 }
 
 static bool TryReadGipHeader(ReadOnlySpan<byte> packet, out GipHeader header)
@@ -573,7 +569,7 @@ static async Task<int> ProbeXbox360(UsbContext context)
     var securityInterfaceNumber = configuration.Interfaces.Single(interfaceInfo => interfaceInfo.Number == 3).Number;
     device.ClaimInterface(interfaceNumber);
     var reader = device.OpenEndpointReader(ReadEndpointID.Ep01, UsbEndpointReader.DefReadBufferSize, EndpointType.Interrupt);
-    var writer = device.OpenEndpointWriter(WriteEndpointID.Ep01, EndpointType.Interrupt);
+    var writer = new SynchronizedUsbWriter(device.OpenEndpointWriter(WriteEndpointID.Ep01, EndpointType.Interrupt));
     device.ClaimInterface(securityInterfaceNumber);
     using var cancellation = new CancellationTokenSource();
     using var controlTransferGate = new SemaphoreSlim(1, 1);
@@ -664,8 +660,17 @@ static void ReadRawPackets(UsbEndpointReader reader, SemaphoreSlim controlTransf
     var consecutiveNotFoundErrors = 0;
     while (!cancellationToken.IsCancellationRequested)
     {
-        interruptReadsEnabled.Wait(cancellationToken);
-        controlTransferGate.Wait(cancellationToken);
+        try
+        {
+            interruptReadsEnabled.Wait(cancellationToken);
+            controlTransferGate.Wait(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // quit cancelled the token while we were waiting; let the caller's cleanup run.
+            break;
+        }
+
         Error error;
         int bytesRead;
         try
@@ -853,7 +858,7 @@ static string GetGipCommandName(byte command) => command switch
 static string FormatGipVersion(ReadOnlySpan<byte> value) =>
     $"{BinaryPrimitives.ReadUInt16LittleEndian(value)}.{BinaryPrimitives.ReadUInt16LittleEndian(value[2..])}.{BinaryPrimitives.ReadUInt16LittleEndian(value[4..])}.{BinaryPrimitives.ReadUInt16LittleEndian(value[6..])}";
 
-static void SendGipCommand(UsbEndpointWriter writer, string? arguments, ref byte sequence)
+static void SendGipCommand(SynchronizedUsbWriter writer, string? arguments, ref byte sequence)
 {
     var fields = arguments?.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries) ?? [];
     if (fields.Length == 0 || !byte.TryParse(fields[0], System.Globalization.NumberStyles.HexNumber, null, out var command))
@@ -864,9 +869,9 @@ static void SendGipCommand(UsbEndpointWriter writer, string? arguments, ref byte
     SendGip(writer, command, 0x20, NextGipSequence(ref sequence), fields.Length == 2 ? ParseHex(fields[1]) : []);
 }
 
-static void SendIdentify(UsbEndpointWriter writer) => SendGip(writer, 0x04, 0x20, 0, []);
+static void SendIdentify(SynchronizedUsbWriter writer) => SendGip(writer, 0x04, 0x20, 0, []);
 
-static void SendGip(UsbEndpointWriter writer, byte command, byte options, byte sequence, byte[] payload)
+static void SendGip(SynchronizedUsbWriter writer, byte command, byte options, byte sequence, byte[] payload)
 {
     if (payload.Length > 127)
     {
@@ -877,7 +882,7 @@ static void SendGip(UsbEndpointWriter writer, byte command, byte options, byte s
     Send(writer, packet);
 }
 
-static void SendMessage(UsbEndpointWriter writer, string? arguments, ref byte messageId, ref byte gipSequence)
+static void SendMessage(SynchronizedUsbWriter writer, string? arguments, ref byte messageId, ref byte gipSequence)
 {
     var fields = arguments?.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries) ?? [];
     if (fields.Length == 0 || !byte.TryParse(fields[0], System.Globalization.NumberStyles.HexNumber, null, out var command))
@@ -894,14 +899,14 @@ static void SendMessage(UsbEndpointWriter writer, string? arguments, ref byte me
     SendLegoMessage(writer, message, null, ref messageId, ref gipSequence);
 }
 
-static void SendTestMessage(UsbEndpointWriter writer, MessageCommand command, byte[] payload, ref byte messageId, ref byte gipSequence)
+static void SendTestMessage(SynchronizedUsbWriter writer, MessageCommand command, byte[] payload, ref byte messageId, ref byte gipSequence)
 {
     var message = new Message(command);
     message.AddPayload(payload);
     SendLegoMessage(writer, message, null, ref messageId, ref gipSequence);
 }
 
-static void SendFixedTestMessage(UsbEndpointWriter writer, MessageCommand command, string? arguments, byte[]? defaultPayload, int expectedLength, string usage, ref byte messageId, ref byte gipSequence)
+static void SendFixedTestMessage(SynchronizedUsbWriter writer, MessageCommand command, string? arguments, byte[]? defaultPayload, int expectedLength, string usage, ref byte messageId, ref byte gipSequence)
 {
     var payload = string.IsNullOrWhiteSpace(arguments) && defaultPayload is not null ? defaultPayload : ParseHex(arguments);
     if (payload.Length != expectedLength)
@@ -912,7 +917,7 @@ static void SendFixedTestMessage(UsbEndpointWriter writer, MessageCommand comman
     SendTestMessage(writer, command, payload, ref messageId, ref gipSequence);
 }
 
-static void SendPasswordAutoTest(UsbEndpointWriter writer, string? arguments, ref byte messageId, ref byte gipSequence)
+static void SendPasswordAutoTest(SynchronizedUsbWriter writer, string? arguments, ref byte messageId, ref byte gipSequence)
 {
     var index = ParseHex(arguments);
     if (index.Length > 1)
@@ -923,7 +928,7 @@ static void SendPasswordAutoTest(UsbEndpointWriter writer, string? arguments, re
     SendTestMessage(writer, MessageCommand.ConfigPassword, [0x01, index.ElementAtOrDefault(0), 0x00, 0x00, 0x00, 0x00], ref messageId, ref gipSequence);
 }
 
-static void SendLegoMessage(UsbEndpointWriter writer, Message message, string? payload, ref byte messageId, ref byte gipSequence)
+static void SendLegoMessage(SynchronizedUsbWriter writer, Message message, string? payload, ref byte messageId, ref byte gipSequence)
 {
     if (payload is not null)
     {
@@ -933,27 +938,14 @@ static void SendLegoMessage(UsbEndpointWriter writer, Message message, string? p
     SendGip(writer, 0x21, 0x00, NextGipSequence(ref gipSequence), message.GetBytes(NextMessageId(ref messageId)));
 }
 
-static void Send(UsbEndpointWriter writer, byte[] bytes)
+static void Send(SynchronizedUsbWriter writer, byte[] bytes)
 {
     if (bytes.Length == 0)
     {
         throw new ArgumentException("No bytes were supplied.");
     }
 
-    writer.Write(bytes, 1000, out var bytesWritten);
-    if (bytesWritten != bytes.Length)
-    {
-        Console.WriteLine($"USB endpoint 0x01 wrote {bytesWritten} of {bytes.Length} bytes; clearing the halt and retrying.");
-        writer.ClearHalt();
-        writer.Write(bytes, 1000, out bytesWritten);
-    }
-
-    if (bytesWritten != bytes.Length)
-    {
-        throw new IOException($"USB endpoint 0x01 wrote {bytesWritten} of {bytes.Length} bytes after recovery. Reconnect the portal.");
-    }
-
-    Console.WriteLine($"TX ({bytesWritten}): {Convert.ToHexString(bytes, 0, bytesWritten)}");
+    writer.Write(bytes);
 }
 
 static byte[] ParseHex(string? value)
@@ -1030,6 +1022,33 @@ static void PrintHelp()
 }
 
 readonly record struct GipHeader(byte Command, byte Options, byte Sequence, int PayloadLength, int ChunkValue, int HeaderLength);
+
+/// <summary>Serializes all writes to a USB endpoint so concurrent callers cannot interleave frames.</summary>
+sealed class SynchronizedUsbWriter(UsbEndpointWriter writer)
+{
+    private readonly object _lock = new();
+
+    public void Write(byte[] bytes)
+    {
+        lock (_lock)
+        {
+            writer.Write(bytes, 1000, out var bytesWritten);
+            if (bytesWritten != bytes.Length)
+            {
+                Console.WriteLine($"USB endpoint 0x01 wrote {bytesWritten} of {bytes.Length} bytes; clearing the halt and retrying.");
+                writer.ClearHalt();
+                writer.Write(bytes, 1000, out bytesWritten);
+            }
+
+            if (bytesWritten != bytes.Length)
+            {
+                throw new IOException($"USB endpoint 0x01 wrote {bytesWritten} of {bytes.Length} bytes after recovery. Reconnect the portal.");
+            }
+
+            Console.WriteLine($"TX ({bytesWritten}): {Convert.ToHexString(bytes, 0, bytesWritten)}");
+        }
+    }
+}
 
 sealed class GipChunkAssembly
 {

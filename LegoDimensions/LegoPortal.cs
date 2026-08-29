@@ -173,11 +173,23 @@ namespace LegoDimensions
 
             // Start the read thread
             _cancelThread = new CancellationTokenSource();
-            _readThread = new Thread(ReadThread);
+            _readThread = new Thread(ReadThread)
+            {
+                // Must not keep the process alive if construction fails before Dispose can be called.
+                IsBackground = true
+            };
             _readThread.Start();
 
-            // WakeUp the portal
-            WakeUp();
+            try
+            {
+                // WakeUp the portal
+                WakeUp();
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>
@@ -485,7 +497,12 @@ namespace LegoDimensions
                     if (error != Error.Success)
                     {
                         Debug.WriteLine($"USB read error: {error}");
-                        break;
+                        if (error == Error.NoDevice || error == Error.NotFound)
+                        {
+                            break;
+                        }
+
+                        continue;
                     }
 
                     var bufferedBytes = !_isXboxPortal && bytesRead == readBuffer.Length + 1

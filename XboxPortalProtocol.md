@@ -188,7 +188,7 @@ The wake payload is a standard command frame. For LEGO message ID `01` it is:
 55 0F B0 01 28 63 29 20 4C 45 47 4F 20 32 30 31 34 F7 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 ```
 
-The 14 payload bytes are ASCII `(c) LEGO 2014`. Its outer packet is:
+The 13 payload bytes are ASCII `(c) LEGO 2014`. Its outer packet is:
 
 ```text
 21 00 SS 20 55 0F B0 01 28 63 29 20 4C 45 47 4F 20 32 30 31 34 F7 00 00 00 00 00 00 00 00 00 00 00 00 00 00
