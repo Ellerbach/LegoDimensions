@@ -27,7 +27,7 @@ namespace LegoDimensions
         private const int XboxWakeProbeTimeout = 250;
         // Shorter than ReadWriteTimeout so a write waiting on _xbox360IoGate never has to wait
         // long for the current read attempt to give up the gate.
-        private const int Xbox360ReadTimeout = 250;
+        private const int Xbox360ReadTimeout = 50;
 
         // This needs to be static to keep the context otherwise, the app will close it
         private static UsbContext? context;
