@@ -58,6 +58,9 @@ For an Xbox One portal, select the Xbox Gaming Device with hardware ID
 `USB\VID_0E6F&PID_0141` and install WinUSB. The NuGet package includes
 the native libusb runtime used by the library.
 
+For an Xbox 360 portal, select the device with hardware ID
+`USB\VID_24C6&PID_FA01` and install WinUSB the same way.
+
 For Linux users
 
 * Install libusb and libusb1 if not already installed like `sudo apt-get libusb-dev` on a Rapsberry Pi

@@ -10,9 +10,10 @@ The complete transport and initialization sequence is documented in the
 
 ## Windows setup
 
-The standard Microsoft driver identifies the portal as an Xbox Gaming Device and
-does not expose it to libusb. Use Zadig to replace that device's driver with
-WinUSB for testing. Select the device with hardware ID `USB\VID_0E6F&PID_0141`.
+The standard Microsoft driver identifies either portal as an Xbox Gaming Device
+and does not expose it to libusb. Use Zadig to replace that device's driver with
+WinUSB for testing. Select the device with hardware ID `USB\VID_0E6F&PID_0141`
+for the Xbox One portal, or `USB\VID_24C6&PID_FA01` for the Xbox 360 portal.
 Changing the driver may prevent the portal from working with an Xbox until the
 Microsoft driver is restored.
 
