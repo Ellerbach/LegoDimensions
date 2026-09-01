@@ -20,9 +20,14 @@ namespace LegoDimensions
         private const int ProductId = 0x0241;
         private const int XboxOneProductId = 0x0141;
         private const int VendorId = 0x0E6F;
+        private const int Xbox360VendorId = 0x24C6;
+        private const int Xbox360ProductId = 0xFA01;
         private const int ReadWriteTimeout = 1000;
         private const int ReceiveTimeout = 2000;
         private const int XboxWakeProbeTimeout = 250;
+        // Shorter than ReadWriteTimeout so a write waiting on _xbox360IoGate never has to wait
+        // long for the current read attempt to give up the gate.
+        private const int Xbox360ReadTimeout = 50;
 
         // This needs to be static to keep the context otherwise, the app will close it
         private static UsbContext? context;
@@ -37,8 +42,22 @@ namespace LegoDimensions
         private List<PresentTag> _presentTags = new List<PresentTag>();
         private bool _nfcEnabled = true;
         private readonly bool _isXboxPortal;
+        private readonly bool _isXbox360Portal;
         private readonly object _writeLock = new object();
         private readonly object _commandLock = new object();
+        // Full-duration mutual exclusion between the background read thread and writes: a background
+        // thread reading concurrently with a write on another thread silently loses replies on this
+        // device (confirmed via XboxPortalProbe's hybrid-async-wake-360 test). Only used for Xbox 360;
+        // other portal types are unaffected and left as-is.
+        private readonly SemaphoreSlim _xbox360IoGate = new SemaphoreSlim(1, 1);
+        // SemaphoreSlim doesn't guarantee fairness: the read loop releasing and immediately
+        // re-acquiring _xbox360IoGate in a tight cycle can starve a write waiting on the same
+        // gate for many seconds. This counter lets the read loop notice a pending write and back
+        // off briefly so the writer reliably gets a turn instead of losing the race repeatedly.
+        private int _xbox360PendingWriters;
+        // Only one tracked Read/GetColor/etc. request-reply cycle at a time on Xbox 360: sending a
+        // second one before the first's reply arrives appears to corrupt/drop one of them.
+        private readonly object _xbox360CommandLock = new object();
         private byte _gipSequence = 1;
 
         // We do have only 3 Pads
@@ -79,7 +98,8 @@ namespace LegoDimensions
 
             //Narrow down the device by vendor and pid
             var selectedDevice = usbDeviceCollection.Where(d =>
-                d.VendorId == VendorId && (d.ProductId == ProductId || d.ProductId == XboxOneProductId));
+                (d.VendorId == VendorId && (d.ProductId == ProductId || d.ProductId == XboxOneProductId)) ||
+                (d.VendorId == Xbox360VendorId && d.ProductId == Xbox360ProductId));
 
             return selectedDevice.ToArray();
         }
@@ -121,6 +141,9 @@ namespace LegoDimensions
         /// <inheritdoc/>
         public bool IsXboxPortal => _isXboxPortal;
 
+        /// <inheritdoc/>
+        public bool IsXbox360Portal => _isXbox360Portal;
+
         /// <summary>
         /// Gets the opaque device-specific bytes returned by the wake command.
         /// </summary>
@@ -135,6 +158,7 @@ namespace LegoDimensions
         {
             _portal = device;
             _isXboxPortal = device.ProductId == XboxOneProductId;
+            _isXbox360Portal = device.VendorId == Xbox360VendorId && device.ProductId == Xbox360ProductId;
             Id = id;
             //Open the device
             _portal.Open();
@@ -156,15 +180,29 @@ namespace LegoDimensions
                     // Continue when the active configuration cannot be selected again.
                 }
             }
+            else if (_isXbox360Portal && !OperatingSystem.IsWindows())
+            {
+                // toypad.py's init() skips reset()/set_configuration() entirely on win32; only call it elsewhere.
+                try
+                {
+                    _portal.SetConfiguration(_portal.Configs[0].ConfigurationValue);
+                }
+                catch (UsbException)
+                {
+                    // Continue when the active configuration cannot be selected again.
+                }
+            }
 
-            //Get the first config number of the interface
+            // Only interface 0 (the main gateway) is ever claimed; the Xbox 360's XSM3 security
+            // interface (3) is intentionally never bound - the toypad replies to LEGO commands
+            // without authentication, so no security-endpoint binding is needed.
             _portal.ClaimInterface(_portal.Configs[0].Interfaces[0].Number);
 
             //Open up the endpoints
             _endpointWriter = _portal.OpenEndpointWriter(WriteEndpointID.Ep01);
             _endpointReader = _portal.OpenEndpointReader(ReadEndpointID.Ep01);
 
-            if (!_isXboxPortal)
+            if (!_isXboxPortal && !_isXbox360Portal)
             {
                 // Read the first 32 bytes
                 var readBuffer = new byte[32];
@@ -197,9 +235,40 @@ namespace LegoDimensions
         {
             Message message = new Message(MessageCommand.Wake);
             message.AddPayload("(c) LEGO 2014");
-            _messageId = 0;
             var getSerial = new ManualResetEvent(false);
             SerialNumber = new byte[0];
+
+            if (_isXbox360Portal)
+            {
+                // toypad.py's start() hardcodes message_id=0 for wake; SendMessage/IncreaseMessageId
+                // treat 0 as "auto-assign", so this bypasses that path to send the literal ID 0.
+                var xbox360CommandId = new CommandId(0, MessageCommand.Wake, getSerial);
+                lock (_commandLock)
+                {
+                    _commandId.Add(xbox360CommandId);
+                }
+
+                try
+                {
+                    WriteUsbPacket(Xbox360Transport.WrapLegoFrame(message.GetBytes(0)));
+                }
+                catch
+                {
+                    RemoveCommand(xbox360CommandId);
+                    throw;
+                }
+
+                getSerial.WaitOne(ReceiveTimeout, true);
+                if (xbox360CommandId.Result != null)
+                {
+                    SerialNumber = (byte[])xbox360CommandId.Result;
+                }
+
+                RemoveCommand(xbox360CommandId);
+                return;
+            }
+
+            _messageId = 0;
             var commandId = SendTrackedMessage(message, MessageCommand.Wake, getSerial);
 
             var wakeReceived = _isXboxPortal && getSerial.WaitOne(XboxWakeProbeTimeout, true);
@@ -240,23 +309,38 @@ namespace LegoDimensions
         /// <inheritdoc/>
         public Color GetColor(Pad pad)
         {
-            Message message = new Message(MessageCommand.GetColor);
-            message.AddPayload(pad);
-            var getColor = new ManualResetEvent(false);
-            var commandId = SendTrackedMessage(message, MessageCommand.GetColor, getColor);
-            // In case we won't get any color, use the default black one
-            Color padColor = Color.Black;
-            // Wait maximum 2 seconds
-            getColor.WaitOne(ReceiveTimeout, true);
-
-            if (commandId.Result != null)
+            if (_isXbox360Portal)
             {
-                padColor = (Color)commandId.Result;
+                Monitor.Enter(_xbox360CommandLock);
             }
 
-            RemoveCommand(commandId);
+            try
+            {
+                Message message = new Message(MessageCommand.GetColor);
+                message.AddPayload(pad);
+                var getColor = new ManualResetEvent(false);
+                var commandId = SendTrackedMessage(message, MessageCommand.GetColor, getColor);
+                // In case we won't get any color, use the default black one
+                Color padColor = Color.Black;
+                // Wait maximum 2 seconds
+                getColor.WaitOne(ReceiveTimeout, true);
 
-            return padColor;
+                if (commandId.Result != null)
+                {
+                    padColor = (Color)commandId.Result;
+                }
+
+                RemoveCommand(commandId);
+
+                return padColor;
+            }
+            finally
+            {
+                if (_isXbox360Portal)
+                {
+                    Monitor.Exit(_xbox360CommandLock);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -325,23 +409,38 @@ namespace LegoDimensions
         /// <returns>A byte array of 16 bytes in case of success.</returns>
         public byte[] ReadTag(byte index, byte page)
         {
-            Message message = new Message(MessageCommand.Read);
-            message.AddPayload(index, page);
-            var getRead = new ManualResetEvent(false);
-            var commandId = SendTrackedMessage(message, MessageCommand.Read, getRead);
-            // In case we won't get any color, use the default black one
-            byte[] readBytes = new byte[0];
-            // Wait maximum 2 seconds
-            getRead.WaitOne(ReceiveTimeout, true);
-
-            if (commandId.Result != null)
+            if (_isXbox360Portal)
             {
-                readBytes = (byte[])commandId.Result;
+                Monitor.Enter(_xbox360CommandLock);
             }
 
-            RemoveCommand(commandId);
+            try
+            {
+                Message message = new Message(MessageCommand.Read);
+                message.AddPayload(index, page);
+                var getRead = new ManualResetEvent(false);
+                var commandId = SendTrackedMessage(message, MessageCommand.Read, getRead);
+                // In case we won't get any color, use the default black one
+                byte[] readBytes = new byte[0];
+                // Wait maximum 2 seconds
+                getRead.WaitOne(ReceiveTimeout, true);
 
-            return readBytes;
+                if (commandId.Result != null)
+                {
+                    readBytes = (byte[])commandId.Result;
+                }
+
+                RemoveCommand(commandId);
+
+                return readBytes;
+            }
+            finally
+            {
+                if (_isXbox360Portal)
+                {
+                    Monitor.Exit(_xbox360CommandLock);
+                }
+            }
         }
 
         /// <summary>
@@ -358,23 +457,38 @@ namespace LegoDimensions
                 throw new ArgumentException("Write to card must be 4 bytes.");
             }
 
-            Message message = new Message(MessageCommand.Write);
-            message.AddPayload(index, page, bytes);
-            var getWrite = new ManualResetEvent(false);
-            var commandId = SendTrackedMessage(message, MessageCommand.Write, getWrite);
-            // In case we won't get any color, use the default black one
-            bool success = false;
-            // Wait maximum 2 seconds
-            getWrite.WaitOne(ReceiveTimeout, true);
-
-            if (commandId.Result != null)
+            if (_isXbox360Portal)
             {
-                success = (bool)commandId.Result;
+                Monitor.Enter(_xbox360CommandLock);
             }
 
-            RemoveCommand(commandId);
+            try
+            {
+                Message message = new Message(MessageCommand.Write);
+                message.AddPayload(index, page, bytes);
+                var getWrite = new ManualResetEvent(false);
+                var commandId = SendTrackedMessage(message, MessageCommand.Write, getWrite);
+                // In case we won't get any color, use the default black one
+                bool success = false;
+                // Wait maximum 2 seconds
+                getWrite.WaitOne(ReceiveTimeout, true);
 
-            return success;
+                if (commandId.Result != null)
+                {
+                    success = (bool)commandId.Result;
+                }
+
+                RemoveCommand(commandId);
+
+                return success;
+            }
+            finally
+            {
+                if (_isXbox360Portal)
+                {
+                    Monitor.Exit(_xbox360CommandLock);
+                }
+            }
         }
 
         /// <summary>
@@ -384,23 +498,38 @@ namespace LegoDimensions
         /// <returns>A byte array of 8 bytes in case of success.</returns>
         public byte[] GetTagInformation(byte[] encryoptedIndex)
         {
-            Message message = new Message(MessageCommand.Model);
-            message.AddPayload(encryoptedIndex);
-            var getRead = new ManualResetEvent(false);
-            var commandId = SendTrackedMessage(message, MessageCommand.Model, getRead);
-            // In case we won't get any color, use the default black one
-            byte[] readBytes = new byte[0];
-            // Wait maximum 2 seconds
-            getRead.WaitOne(ReceiveTimeout, true);
-
-            if (commandId.Result != null)
+            if (_isXbox360Portal)
             {
-                readBytes = (byte[])commandId.Result;
+                Monitor.Enter(_xbox360CommandLock);
             }
 
-            RemoveCommand(commandId);
+            try
+            {
+                Message message = new Message(MessageCommand.Model);
+                message.AddPayload(encryoptedIndex);
+                var getRead = new ManualResetEvent(false);
+                var commandId = SendTrackedMessage(message, MessageCommand.Model, getRead);
+                // In case we won't get any color, use the default black one
+                byte[] readBytes = new byte[0];
+                // Wait maximum 2 seconds
+                getRead.WaitOne(ReceiveTimeout, true);
 
-            return readBytes;
+                if (commandId.Result != null)
+                {
+                    readBytes = (byte[])commandId.Result;
+                }
+
+                RemoveCommand(commandId);
+
+                return readBytes;
+            }
+            finally
+            {
+                if (_isXbox360Portal)
+                {
+                    Monitor.Exit(_xbox360CommandLock);
+                }
+            }
         }
 
         /// <summary>
@@ -409,36 +538,68 @@ namespace LegoDimensions
         /// <returns>A byte array of 8 bytes in case of success.</returns>
         public byte[] GetChallenge()
         {
-            Message message = new Message(MessageCommand.Challenge);
-            var getChallenge = new ManualResetEvent(false);
-            var commandId = SendTrackedMessage(message, MessageCommand.Challenge, getChallenge);
-            // In case we won't get any color, use the default black one
-            byte[] readBytes = new byte[0];
-            // Wait maximum 2 seconds
-            getChallenge.WaitOne(ReceiveTimeout, true);
-
-            if (commandId.Result != null)
+            if (_isXbox360Portal)
             {
-                readBytes = (byte[])commandId.Result;
+                Monitor.Enter(_xbox360CommandLock);
             }
 
-            RemoveCommand(commandId);
+            try
+            {
+                Message message = new Message(MessageCommand.Challenge);
+                var getChallenge = new ManualResetEvent(false);
+                var commandId = SendTrackedMessage(message, MessageCommand.Challenge, getChallenge);
+                // In case we won't get any color, use the default black one
+                byte[] readBytes = new byte[0];
+                // Wait maximum 2 seconds
+                getChallenge.WaitOne(ReceiveTimeout, true);
 
-            return readBytes;
+                if (commandId.Result != null)
+                {
+                    readBytes = (byte[])commandId.Result;
+                }
+
+                RemoveCommand(commandId);
+
+                return readBytes;
+            }
+            finally
+            {
+                if (_isXbox360Portal)
+                {
+                    Monitor.Exit(_xbox360CommandLock);
+                }
+            }
         }
 
         public IEnumerable<PresentTag> ListTags()
         {
-            Message message = new Message(MessageCommand.TagList);
-            var getTagList = new ManualResetEvent(false);
-            var commandId = SendTrackedMessage(message, MessageCommand.TagList, getTagList);
-            while (!getTagList.WaitOne(ReceiveTimeout))
-            { }
+            if (_isXbox360Portal)
+            {
+                Monitor.Enter(_xbox360CommandLock);
+            }
 
-            // We don't do anything as we manage the result globally
-            RemoveCommand(commandId);
+            try
+            {
+                Message message = new Message(MessageCommand.TagList);
+                var getTagList = new ManualResetEvent(false);
+                var commandId = SendTrackedMessage(message, MessageCommand.TagList, getTagList);
+                // Bounded like the other tracked commands: an unbounded wait here would spin forever
+                // if the portal never replies, permanently blocking every other Xbox 360 command
+                // waiting on _xbox360CommandLock.
+                getTagList.WaitOne(ReceiveTimeout, true);
 
-            return _presentTags;
+                // We don't do anything as we manage the result globally
+                RemoveCommand(commandId);
+
+                return _presentTags;
+            }
+            finally
+            {
+                if (_isXbox360Portal)
+                {
+                    Monitor.Exit(_xbox360CommandLock);
+                }
+            }
         }
 
         /// <summary>
@@ -474,7 +635,9 @@ namespace LegoDimensions
             var legoMessage = message.GetBytes(id);
             var bytes = _isXboxPortal
                 ? XboxGipTransport.CreatePacket(XboxGipTransport.LegoGatewayCommand, 0x00, IncreaseGipSequence(), legoMessage)
-                : legoMessage;
+                : _isXbox360Portal
+                    ? Xbox360Transport.WrapLegoFrame(legoMessage)
+                    : legoMessage;
             WriteUsbPacket(bytes);
             return id;
         }
@@ -488,7 +651,33 @@ namespace LegoDimensions
             {
                 try
                 {
-                    var error = _endpointReader.Read(readBuffer, ReadWriteTimeout, out bytesRead);
+                    Error error;
+                    if (_isXbox360Portal)
+                    {
+                        if (Volatile.Read(ref _xbox360PendingWriters) > 0)
+                        {
+                            // Back off instead of immediately re-racing for the gate, so the waiting
+                            // write gets a fair chance instead of being starved by this loop.
+                            Thread.Sleep(5);
+                        }
+
+                        // Held for the full duration of the call so a concurrent write (from another
+                        // thread) can never overlap with this read on the same device handle.
+                        _xbox360IoGate.Wait(_cancelThread.Token);
+                        try
+                        {
+                            error = _endpointReader.Read(readBuffer, Xbox360ReadTimeout, out bytesRead);
+                        }
+                        finally
+                        {
+                            _xbox360IoGate.Release();
+                        }
+                    }
+                    else
+                    {
+                        error = _endpointReader.Read(readBuffer, ReadWriteTimeout, out bytesRead);
+                    }
+
                     if (error == Error.Timeout)
                     {
                         continue;
@@ -547,7 +736,30 @@ namespace LegoDimensions
                                         // Ask for more wuth the read command for 0x24
                                         var msgToSend = new Message(MessageCommand.Read);
                                         msgToSend.AddPayload(padIndex, (byte)0x24);
-                                        legoTag.LastMessageId = SendTrackedMessage(msgToSend, MessageCommand.Read, null).MessageId;
+                                        // On Xbox 360, skip this if an explicit call (ReadTag/GetColor/etc.) is
+                                        // currently in flight on another thread: blocking here would deadlock
+                                        // this read thread against that call's own wait for its reply, and
+                                        // sending both at once appears to corrupt/drop one of the replies.
+                                        var autoReadLockTaken = !_isXbox360Portal;
+                                        if (_isXbox360Portal)
+                                        {
+                                            Monitor.TryEnter(_xbox360CommandLock, 0, ref autoReadLockTaken);
+                                        }
+
+                                        if (autoReadLockTaken)
+                                        {
+                                            try
+                                            {
+                                                legoTag.LastMessageId = SendTrackedMessage(msgToSend, MessageCommand.Read, null).MessageId;
+                                            }
+                                            finally
+                                            {
+                                                if (_isXbox360Portal)
+                                                {
+                                                    Monitor.Exit(_xbox360CommandLock);
+                                                }
+                                            }
+                                        }
                                     }
                                     else
                                     {
@@ -725,6 +937,16 @@ namespace LegoDimensions
 
         private IEnumerable<byte[]> ExtractLegoMessages(byte[] buffer, int bytesRead)
         {
+            if (_isXbox360Portal)
+            {
+                if (Xbox360Transport.TryUnwrapLegoFrame(buffer.AsSpan(0, bytesRead), out var standardFrame))
+                {
+                    yield return standardFrame;
+                }
+
+                yield break;
+            }
+
             if (!_isXboxPortal)
             {
                 if (bytesRead == 32)
@@ -751,9 +973,35 @@ namespace LegoDimensions
         {
             lock (_writeLock)
             {
-                var error = _endpointWriter.Write(bytes, ReadWriteTimeout, out var bytesWritten);
+                Error error;
+                int bytesWritten;
+                if (_isXbox360Portal)
+                {
+                    Interlocked.Increment(ref _xbox360PendingWriters);
+                    try
+                    {
+                        _xbox360IoGate.Wait();
+                        try
+                        {
+                            error = _endpointWriter.Write(bytes, ReadWriteTimeout, out bytesWritten);
+                        }
+                        finally
+                        {
+                            _xbox360IoGate.Release();
+                        }
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref _xbox360PendingWriters);
+                    }
+                }
+                else
+                {
+                    error = _endpointWriter.Write(bytes, ReadWriteTimeout, out bytesWritten);
+                }
+
                 var complete = bytesWritten == bytes.Length ||
-                    (!_isXboxPortal && bytes.Length == 32 && bytesWritten == 33);
+                    (!_isXboxPortal && !_isXbox360Portal && bytes.Length == 32 && bytesWritten == 33);
                 if (error != Error.Success || !complete)
                 {
                     throw new IOException($"USB endpoint write failed with {error}; reported {bytesWritten} for {bytes.Length} bytes.");
@@ -785,6 +1033,8 @@ namespace LegoDimensions
                 _portal.Close();
                 _portal.Dispose();
             }
+
+            _xbox360IoGate?.Dispose();
         }
     }
 }

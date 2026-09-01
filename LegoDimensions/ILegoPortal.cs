@@ -18,6 +18,11 @@ namespace LegoDimensions
         bool IsXboxPortal { get; }
 
         /// <summary>
+        /// Gets a value indicating whether this is an Xbox 360 portal.
+        /// </summary>
+        bool IsXbox360Portal { get; }
+
+        /// <summary>
         /// Gets or sets the NFC reader enablement.
         /// </summary>
         bool NfcEnabled { get; set; }

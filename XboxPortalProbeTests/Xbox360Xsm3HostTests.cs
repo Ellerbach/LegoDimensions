@@ -64,4 +64,23 @@ public class Xbox360Xsm3HostTests
 
         Assert.Contains("different 0x23/0x24 key material", exception.Message);
     }
+
+    [Fact]
+    public void ReportsKeyMismatchForDopheidebToypadCapture()
+    {
+        // From github.com/dopheideb/xbox360-controller-auth LEGO-Dimensions-toypad-dump.md,
+        // a separate real console<->toypad MITM capture (different physical unit/session
+        // than ReportsKeyMismatchForLiveLegoPortalResponse's own capture above).
+        var identity = Convert.FromHexString(
+            "494B00001774FF25530E11852538032000008082C624005003000101EA");
+        var challenge = Convert.FromHexString(
+            "094000001CB69EE4D8F725222CD8D6D252255C79BB264CFDE55BBE5BB3C85A0ED7C9");
+        var response = Convert.FromHexString(
+            "494C000028B77EAAC65B1E9FCB182573C1EF875F7C4B976F65278BD0C76F94F1B97E6E659272591531B9CA355D5D");
+
+        var exception = Assert.Throws<CryptographicException>(
+            () => Xbox360Xsm3Host.Create(identity, challenge, response));
+
+        Assert.Contains("different 0x23/0x24 key material", exception.Message);
+    }
 }

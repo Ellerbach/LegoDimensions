@@ -263,3 +263,6 @@ paket-files/
 #Development App Settings
 appsettings.Development.json
 .vscode/settings.json
+
+# Native libusb binary, pulled on demand by XboxPortalProbe/tools/update-libusb.ps1
+XboxPortalProbe/native/

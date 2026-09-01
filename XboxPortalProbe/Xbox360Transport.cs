@@ -9,7 +9,8 @@ internal static class Xbox360Transport
 
         var report = new byte[32];
         report[0] = 0x0B;
-        report[1] = 0x14;
+        // Confirmed from real toy pad firmware (dopheideb/LEGODimensions); an earlier capture had misread this as 0x14.
+        report[1] = 0x16;
         frame[..30].CopyTo(report.AsSpan(2));
         return report;
     }

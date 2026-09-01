@@ -51,7 +51,8 @@ internal sealed class Xbox360Xsm3Host
     private readonly byte[] _commandHash;
     private readonly byte[] _protocolData;
     private readonly byte[] _consoleId;
-    private byte[]? _finalResponseSalt;
+    private readonly byte[] _verifySalt;
+    private bool _verifyPacketCreated;
 
     private Xbox360Xsm3Host(
         byte[] consoleRandom,
@@ -69,6 +70,12 @@ internal sealed class Xbox360Xsm3Host
         _commandHash = commandHash;
         _protocolData = protocolData;
         _consoleId = consoleId;
+
+        // Persists and keeps incrementing across multiple verify rounds, matching
+        // the real console<->toypad capture which performs two 0x87/0x83 rounds.
+        _verifySalt = new byte[16];
+        _usbRandom.AsSpan(12, 4).CopyTo(_verifySalt);
+        _consoleRandom.AsSpan(12, 4).CopyTo(_verifySalt.AsSpan(4));
     }
 
     public static Xbox360Xsm3Host Create(
@@ -138,9 +145,8 @@ internal sealed class Xbox360Xsm3Host
         }
 
         var encrypted = AuthenticationCrypt(_usbRandom, plaintext, true);
-        var salt = CreateVerifySalt();
-        plaintext.CopyTo(salt.AsSpan(8));
-        var mac = AuthenticationMac(_commandHash, salt, encrypted);
+        plaintext.CopyTo(_verifySalt.AsSpan(8));
+        var mac = AuthenticationMac(_commandHash, _verifySalt, encrypted);
 
         var packet = new byte[22];
         packet[0] = 0x09;
@@ -149,7 +155,7 @@ internal sealed class Xbox360Xsm3Host
         encrypted.CopyTo(packet, 5);
         mac.CopyTo(packet, 13);
         packet[21] = CalculateChecksum(packet);
-        _finalResponseSalt = salt;
+        _verifyPacketCreated = true;
         return packet;
     }
 
@@ -157,46 +163,36 @@ internal sealed class Xbox360Xsm3Host
     {
         ValidatePacket(packet, 0x09, 0x41, 0x10);
         var plaintext = AuthenticationCrypt(_usbRandom, packet.Slice(5, 8), false);
-        var salt = CreateVerifySalt();
-        plaintext.CopyTo(salt.AsSpan(8));
-        var expectedMac = AuthenticationMac(_commandHash, salt, packet.Slice(5, 8));
+        plaintext.CopyTo(_verifySalt.AsSpan(8));
+        var expectedMac = AuthenticationMac(_commandHash, _verifySalt, packet.Slice(5, 8));
         if (!CryptographicOperations.FixedTimeEquals(expectedMac, packet.Slice(13, 8)))
         {
             throw new CryptographicException("XSM3 verify packet MAC is invalid.");
         }
 
-        _finalResponseSalt = salt;
+        _verifyPacketCreated = true;
     }
 
     public void ValidateFinalResponse(ReadOnlySpan<byte> response)
     {
-        if (_finalResponseSalt is null)
+        if (!_verifyPacketCreated)
         {
             throw new InvalidOperationException("An XSM3 verify packet has not been generated.");
         }
 
         ValidatePacket(response, 0x49, 0x4C, 0x10);
-        var salt = (byte[])_finalResponseSalt.Clone();
-        var expectedMac = AuthenticationMac(_randomSwapEncrypted, salt, response.Slice(5, 8));
+        var expectedMac = AuthenticationMac(_randomSwapEncrypted, _verifySalt, response.Slice(5, 8));
         if (!CryptographicOperations.FixedTimeEquals(expectedMac, response.Slice(13, 8)))
         {
             throw new CryptographicException("XSM3 final response MAC is invalid.");
         }
 
         var responseAcr = AuthenticationCrypt(_randomEncrypted, response.Slice(5, 8), false);
-        var expectedAcr = AuthenticationAcr(_protocolData, _consoleId, salt.AsSpan(8, 8));
+        var expectedAcr = AuthenticationAcr(_protocolData, _consoleId, _verifySalt.AsSpan(8, 8));
         if (!CryptographicOperations.FixedTimeEquals(expectedAcr, responseAcr))
         {
             throw new CryptographicException("XSM3 final response ACR is invalid.");
         }
-    }
-
-    private byte[] CreateVerifySalt()
-    {
-        var salt = (byte[])_consoleRandom.Clone();
-        _usbRandom.AsSpan(12, 4).CopyTo(salt);
-        _consoleRandom.AsSpan(12, 4).CopyTo(salt.AsSpan(4));
-        return salt;
     }
 
     private static byte[] AuthenticationCrypt(ReadOnlySpan<byte> key, ReadOnlySpan<byte> input, bool encrypt)

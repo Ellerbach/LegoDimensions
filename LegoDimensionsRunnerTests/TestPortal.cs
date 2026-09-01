@@ -13,6 +13,7 @@ namespace LegoDimensionsRunnerTests
         public bool NfcEnabled { get ; set ; }
         public bool GetTagDetails { get; set ; }
         public bool IsXboxPortal => false;
+        public bool IsXbox360Portal => false;
 
         public CancellationTokenSource ResetEvent { get; set ; }
 
