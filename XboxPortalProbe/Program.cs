@@ -3,6 +3,8 @@ using LibUsbDotNet;
 using LibUsbDotNet.LibUsb;
 using LibUsbDotNet.Main;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
 
 const int VendorId = 0x0E6F;
 const int XboxProductId = 0x0141;
@@ -24,40 +26,60 @@ catch (DllNotFoundException)
 }
 
 using var disposableContext = context;
+if (args.Contains("list-usb", StringComparer.OrdinalIgnoreCase))
+{
+    foreach (var usbDevice in context.List())
+    {
+        string productInfo;
+        try
+        {
+            usbDevice.Open();
+            productInfo = $"{usbDevice.Info.Manufacturer} {usbDevice.Info.Product}".Trim();
+            usbDevice.Close();
+        }
+        catch (UsbException)
+        {
+            productInfo = "(could not open to read strings)";
+        }
+
+        Console.WriteLine($"{usbDevice.VendorId:X4}:{usbDevice.ProductId:X4}  {productInfo}");
+    }
+
+    return 0;
+}
+
+if (args.Length == 3 && args[0].Equals("describe", StringComparison.OrdinalIgnoreCase))
+{
+    if (!ushort.TryParse(args[1], System.Globalization.NumberStyles.HexNumber, null, out var describeVendorId) ||
+        !ushort.TryParse(args[2], System.Globalization.NumberStyles.HexNumber, null, out var describeProductId))
+    {
+        Console.Error.WriteLine("Usage: describe <vid-hex> <pid-hex>");
+        return 1;
+    }
+
+    return DescribeDevice(context, describeVendorId, describeProductId);
+}
+
+if (args.Length == 3 && args[0].Equals("probe", StringComparison.OrdinalIgnoreCase))
+{
+    if (!ushort.TryParse(args[1], System.Globalization.NumberStyles.HexNumber, null, out var probeVendorId) ||
+        !ushort.TryParse(args[2], System.Globalization.NumberStyles.HexNumber, null, out var probeProductId))
+    {
+        Console.Error.WriteLine("Usage: probe <vid-hex> <pid-hex>");
+        return 1;
+    }
+
+    return await ProbeXbox360(context, probeVendorId, probeProductId);
+}
+
 if (args.Contains("probe-360", StringComparer.OrdinalIgnoreCase))
 {
-    return await ProbeXbox360(context);
+    return await ProbeXbox360(context, Xbox360VendorId, Xbox360ProductId);
 }
 
 if (args.Contains("describe-360", StringComparer.OrdinalIgnoreCase))
 {
-    var xbox360Devices = context.List()
-        .Where(device => device.VendorId == Xbox360VendorId && device.ProductId == Xbox360ProductId)
-        .ToArray();
-    if (xbox360Devices.Length == 0)
-    {
-        Console.Error.WriteLine("Xbox 360 portal 24C6:FA01 was not found by libusb.");
-        return 1;
-    }
-
-    foreach (var xbox360Device in xbox360Devices)
-    {
-        Console.WriteLine($"Device {xbox360Device.VendorId:X4}:{xbox360Device.ProductId:X4}");
-        foreach (var xbox360Configuration in xbox360Device.Configs)
-        {
-            DumpDescriptor("  Configuration", xbox360Configuration);
-            foreach (var xbox360Interface in xbox360Configuration.Interfaces)
-            {
-                DumpDescriptor("    Interface", xbox360Interface);
-                foreach (var xbox360Endpoint in xbox360Interface.Endpoints)
-                {
-                    DumpDescriptor("      Endpoint", xbox360Endpoint);
-                }
-            }
-        }
-    }
-
-    return 0;
+    return DescribeDevice(context, Xbox360VendorId, Xbox360ProductId);
 }
 
 var connectedDevices = context.List();
@@ -70,7 +92,7 @@ if (devices.Length == 0)
     if (connectedDevices.Any(device => device.VendorId == Xbox360VendorId && device.ProductId == Xbox360ProductId))
     {
         Console.WriteLine("Xbox One portal was not found; using Xbox 360 portal 24C6:FA01.");
-        return await ProbeXbox360(context);
+        return await ProbeXbox360(context, Xbox360VendorId, Xbox360ProductId);
     }
 
     Console.Error.WriteLine("Xbox portal 0E6F:0141 was not found by libusb.");
@@ -533,14 +555,45 @@ static void DumpDescriptor(string label, object descriptor)
     Console.WriteLine($"{label}: {string.Join(", ", values)}");
 }
 
-static async Task<int> ProbeXbox360(UsbContext context)
+static int DescribeDevice(UsbContext context, int vendorId, int productId)
+{
+    var matchingDevices = context.List()
+        .Where(device => device.VendorId == vendorId && device.ProductId == productId)
+        .ToArray();
+    if (matchingDevices.Length == 0)
+    {
+        Console.Error.WriteLine($"Device {vendorId:X4}:{productId:X4} was not found by libusb.");
+        return 1;
+    }
+
+    foreach (var matchingDevice in matchingDevices)
+    {
+        Console.WriteLine($"Device {matchingDevice.VendorId:X4}:{matchingDevice.ProductId:X4}");
+        foreach (var deviceConfiguration in matchingDevice.Configs)
+        {
+            DumpDescriptor("  Configuration", deviceConfiguration);
+            foreach (var deviceInterface in deviceConfiguration.Interfaces)
+            {
+                DumpDescriptor("    Interface", deviceInterface);
+                foreach (var deviceEndpoint in deviceInterface.Endpoints)
+                {
+                    DumpDescriptor("      Endpoint", deviceEndpoint);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static async Task<int> ProbeXbox360(UsbContext context, int vendorId, int productId)
 {
     var devices = context.List()
-        .Where(device => device.VendorId == Xbox360VendorId && device.ProductId == Xbox360ProductId)
+        .Where(device => device.VendorId == vendorId && device.ProductId == productId)
         .ToArray();
     if (devices.Length == 0)
     {
-        Console.Error.WriteLine("Xbox 360 portal 24C6:FA01 was not found by libusb.");
+        Console.Error.WriteLine($"Device {vendorId:X4}:{productId:X4} was not found by libusb.");
         return 1;
     }
 
@@ -551,7 +604,7 @@ static async Task<int> ProbeXbox360(UsbContext context)
     }
     catch (UsbException exception)
     {
-        Console.Error.WriteLine($"Xbox 360 portal 24C6:FA01 could not be opened: {exception.Message}");
+        Console.Error.WriteLine($"Device {vendorId:X4}:{productId:X4} could not be opened: {exception.Message}");
         return 3;
     }
 
@@ -574,10 +627,12 @@ static async Task<int> ProbeXbox360(UsbContext context)
     using var cancellation = new CancellationTokenSource();
     using var controlTransferGate = new SemaphoreSlim(1, 1);
     using var interruptReadsEnabled = new ManualResetEventSlim(true);
-    var readTask = Task.Run(() => ReadRawPackets(reader, controlTransferGate, interruptReadsEnabled, cancellation.Token));
+    using var capturedFrames = new BlockingCollection<byte[]>(boundedCapacity: 16);
+    var readTask = Task.Run(() => ReadRawPackets(reader, controlTransferGate, interruptReadsEnabled, capturedFrames, cancellation.Token));
     byte messageId = 0;
+    PortalRng? xbox360Rng = null;
 
-    Console.WriteLine($"Opened Xbox 360 portal 24C6:FA01, interface {interfaceNumber}, endpoints 81/01.");
+    Console.WriteLine($"Opened device {vendorId:X4}:{productId:X4}, interface {interfaceNumber}, endpoints 81/01.");
     Console.WriteLine("Listening for raw input. Type 'help' for commands.");
 
     try
@@ -604,7 +659,21 @@ static async Task<int> ProbeXbox360(UsbContext context)
                     case "help":
                         Console.WriteLine("send <hex>                              Send exact bytes to endpoint 01");
                         Console.WriteLine("wake                                    Send an Xbox 360-wrapped LEGO wake frame");
-                        Console.WriteLine("xinput-led                              Send Xbox 360 LED command 01-03-06");
+                        Console.WriteLine("xinput-led                              Send Xbox 360 LED command 01-03-06 (unconfirmed by any known protocol source)");
+                        Console.WriteLine("test-color                              Send a wrapped LEGO Color command (C0), red on the center pad");
+                        Console.WriteLine("test-get-color                          Request center pad color (C1); waits briefly for a reply");
+                        Console.WriteLine("test-fade                               Fade center pad to red (C2)");
+                        Console.WriteLine("test-flash                              Flash right pad azure (C3)");
+                        Console.WriteLine("test-fade-random                        Random-fade left pad (C4)");
+                        Console.WriteLine("test-fade-all                           Exercise different fades on all pads (C6)");
+                        Console.WriteLine("test-flash-all                          Exercise different flashes on all pads (C7)");
+                        Console.WriteLine("test-color-all                          Set center red, left green, right blue (C8)");
+                        Console.WriteLine("test-color-off                          Switch all pad LEDs off (C8)");
+                        Console.WriteLine("test-list-tags                          List tags on the portal (D0); waits briefly for a reply");
+                        Console.WriteLine("test-read [index page]                  Read 16 bytes; defaults to index 00, page 24 (D2); waits briefly for a reply");
+                        Console.WriteLine("test-seed [seed-hex] [nonce-hex]        Send a TEA-encrypted seed (B1) and verify the echo");
+                        Console.WriteLine("test-challenge [8-byte-hex]             Send a challenge (B3) and verify the RNG-derived reply");
+                        Console.WriteLine("test-challenge-loop [count]             Repeat test-challenge with random payloads (default 25)");
                         Console.WriteLine("xsm3-auth                               Complete Xbox 360 security authentication");
                         Console.WriteLine("control-in <type request value index n> Issue a vendor control-IN request; numbers are hex");
                         Console.WriteLine("control-out <type request value index hex> Issue a vendor control-OUT request; numbers are hex");
@@ -614,13 +683,49 @@ static async Task<int> ProbeXbox360(UsbContext context)
                         Send(writer, ParseHex(parts.ElementAtOrDefault(1)));
                         break;
                     case "wake":
-                        var wake = new Message(MessageCommand.Wake);
-                        wake.AddPayload("(c) LEGO 2014");
-                        var wakeFrame = wake.GetBytes(NextMessageId(ref messageId));
-                        Send(writer, Xbox360Transport.WrapLegoFrame(wakeFrame));
+                        SendXbox360Message(writer, MessageCommand.Wake, ref messageId, "(c) LEGO 2014");
                         break;
                     case "xinput-led":
                         Send(writer, [0x01, 0x03, 0x06]);
+                        break;
+                    case "test-color":
+                        SendXbox360Message(writer, MessageCommand.Color, ref messageId, new byte[] { 0x01, 0xFF, 0x00, 0x00 });
+                        break;
+                    case "test-get-color":
+                        SendXbox360MessageAndReport(writer, capturedFrames, MessageCommand.GetColor, ref messageId, new byte[] { 0x01 });
+                        break;
+                    case "test-fade":
+                        SendXbox360Message(writer, MessageCommand.Fade, ref messageId, new byte[] { 0x01, 0x32, 0x05, 0xFF, 0x00, 0x00 });
+                        break;
+                    case "test-flash":
+                        SendXbox360Message(writer, MessageCommand.Flash, ref messageId, new byte[] { 0x03, 0x14, 0x14, 0x14, 0xF0, 0xFF, 0xFF });
+                        break;
+                    case "test-fade-random":
+                        SendXbox360Message(writer, MessageCommand.FadeRandom, ref messageId, new byte[] { 0x02, 0x0A, 0x0A });
+                        break;
+                    case "test-fade-all":
+                        SendXbox360Message(writer, MessageCommand.FadeAll, ref messageId, new byte[] { 0x01, 0x32, 0x05, 0xFF, 0x00, 0x00, 0x01, 0x05, 0x32, 0x00, 0x80, 0x00, 0x01, 0x0A, 0x64, 0xFF, 0xFF, 0x00 });
+                        break;
+                    case "test-flash-all":
+                        SendXbox360Message(writer, MessageCommand.FlashAll, ref messageId, new byte[] { 0x01, 0x0A, 0x1E, 0x28, 0xFF, 0x00, 0x00, 0x01, 0x01, 0x01, 0xFF, 0x00, 0x80, 0x00, 0x01, 0x14, 0x14, 0x14, 0xF0, 0xFF, 0xFF });
+                        break;
+                    case "test-color-all":
+                        SendXbox360Message(writer, MessageCommand.ColorAll, ref messageId, new byte[] { 0x01, 0xFF, 0x00, 0x00, 0x01, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x00, 0xFF });
+                        break;
+                    case "test-color-off":
+                        SendXbox360Message(writer, MessageCommand.ColorAll, ref messageId, new byte[] { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 });
+                        break;
+                    case "test-list-tags":
+                        SendXbox360MessageAndReport(writer, capturedFrames, MessageCommand.TagList, ref messageId);
+                        break;
+                    case "test-read":
+                        var readPayload = string.IsNullOrWhiteSpace(parts.ElementAtOrDefault(1)) ? new byte[] { 0x00, 0x24 } : ParseHex(parts.ElementAtOrDefault(1));
+                        if (readPayload.Length != 2)
+                        {
+                            throw new ArgumentException("Usage: test-read [index page]");
+                        }
+
+                        SendXbox360MessageAndReport(writer, capturedFrames, MessageCommand.Read, ref messageId, readPayload);
                         break;
                     case "xsm3-auth":
                         AuthenticateXbox360(device, controlTransferGate, interruptReadsEnabled);
@@ -630,6 +735,15 @@ static async Task<int> ProbeXbox360(UsbContext context)
                         break;
                     case "control-out":
                         SendControlOut(device, controlTransferGate, interruptReadsEnabled, parts.ElementAtOrDefault(1));
+                        break;
+                    case "test-seed":
+                        xbox360Rng = TestXbox360Seed(writer, capturedFrames, parts.ElementAtOrDefault(1), ref messageId);
+                        break;
+                    case "test-challenge":
+                        TestXbox360Challenge(writer, capturedFrames, xbox360Rng, parts.ElementAtOrDefault(1), ref messageId);
+                        break;
+                    case "test-challenge-loop":
+                        TestXbox360ChallengeLoop(writer, capturedFrames, xbox360Rng, parts.ElementAtOrDefault(1), ref messageId);
                         break;
                     default:
                         Console.WriteLine("Unknown command. Type 'help' for usage.");
@@ -654,10 +768,12 @@ static async Task<int> ProbeXbox360(UsbContext context)
     return 0;
 }
 
-static void ReadRawPackets(UsbEndpointReader reader, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled, CancellationToken cancellationToken)
+static void ReadRawPackets(UsbEndpointReader reader, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled, BlockingCollection<byte[]> capturedFrames, CancellationToken cancellationToken)
 {
     var buffer = new byte[1024];
     var consecutiveNotFoundErrors = 0;
+    byte[]? previousPacket = null;
+    var repeatCount = 0;
     while (!cancellationToken.IsCancellationRequested)
     {
         try
@@ -688,9 +804,32 @@ static void ReadRawPackets(UsbEndpointReader reader, SemaphoreSlim controlTransf
             continue;
         }
 
-        Console.WriteLine(error == Error.Success
-            ? $"\nRX ({bytesRead}): {Convert.ToHexString(buffer, 0, bytesRead)}"
-            : $"\nRX error: {error}, bytes={bytesRead}");
+        if (error == Error.Success && bytesRead > 0)
+        {
+            var packet = buffer[..bytesRead];
+            if (previousPacket is not null && packet.AsSpan().SequenceEqual(previousPacket))
+            {
+                repeatCount++;
+            }
+            else
+            {
+                if (repeatCount > 0)
+                {
+                    Console.WriteLine($"\nRX ({previousPacket!.Length}): {Convert.ToHexString(previousPacket)} repeated {repeatCount} additional time(s).");
+                }
+
+                Console.WriteLine($"\nRX ({bytesRead}): {Convert.ToHexString(packet)}");
+                previousPacket = packet;
+                repeatCount = 0;
+            }
+
+            capturedFrames.TryAdd(packet);
+        }
+        else if (error != Error.Success)
+        {
+            Console.WriteLine($"\nRX error: {error}, bytes={bytesRead}");
+        }
+
         if (error == Error.NotFound && ++consecutiveNotFoundErrors < 3)
         {
             continue;
@@ -703,6 +842,190 @@ static void ReadRawPackets(UsbEndpointReader reader, SemaphoreSlim controlTransf
 
         consecutiveNotFoundErrors = 0;
     }
+}
+
+static byte[]? WaitForNextRawFrame(BlockingCollection<byte[]> capturedFrames, TimeSpan timeout)
+{
+    return capturedFrames.TryTake(out var frame, timeout) ? frame : null;
+}
+
+static void DrainRawFrames(BlockingCollection<byte[]> capturedFrames)
+{
+    while (capturedFrames.TryTake(out _))
+    {
+    }
+}
+
+static Message? ReadXbox360LegoReply(byte[] rawFrame)
+{
+    if (rawFrame.Length < 2 || rawFrame[0] != 0x0B || rawFrame[1] != 0x16)
+    {
+        Console.WriteLine($"Unexpected frame prefix: {Convert.ToHexString(rawFrame)}");
+        return null;
+    }
+
+    var standardFrame = new byte[32];
+    rawFrame.AsSpan(2, Math.Min(30, rawFrame.Length - 2)).CopyTo(standardFrame);
+    return Message.CreateFromBuffer(standardFrame, MessageSource.Portal);
+}
+
+static void SendXbox360Message(SynchronizedUsbWriter writer, MessageCommand command, ref byte messageId, params object[] payload)
+{
+    var message = new Message(command);
+    if (payload.Length > 0)
+    {
+        message.AddPayload(payload);
+    }
+
+    Send(writer, Xbox360Transport.WrapLegoFrame(message.GetBytes(NextMessageId(ref messageId))));
+}
+
+static void SendXbox360MessageAndReport(SynchronizedUsbWriter writer, BlockingCollection<byte[]> capturedFrames, MessageCommand command, ref byte messageId, params object[] payload)
+{
+    var message = new Message(command);
+    if (payload.Length > 0)
+    {
+        message.AddPayload(payload);
+    }
+
+    DrainRawFrames(capturedFrames);
+    Send(writer, Xbox360Transport.WrapLegoFrame(message.GetBytes(NextMessageId(ref messageId))));
+
+    var rawReply = WaitForNextRawFrame(capturedFrames, TimeSpan.FromSeconds(2));
+    if (rawReply is null)
+    {
+        Console.WriteLine("No reply received within 2 seconds.");
+        return;
+    }
+
+    var reply = ReadXbox360LegoReply(rawReply);
+    if (reply is not null)
+    {
+        Console.WriteLine($"Reply payload: {Convert.ToHexString(reply.Payload)}");
+    }
+}
+
+static PortalRng? TestXbox360Seed(SynchronizedUsbWriter writer, BlockingCollection<byte[]> capturedFrames, string? arguments, ref byte messageId)
+{
+    var fields = arguments?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+    var seed = fields.Length > 0 ? Convert.ToUInt32(fields[0], 16) : (uint)Random.Shared.NextInt64(uint.MaxValue);
+    var nonce = fields.Length > 1 ? Convert.ToUInt32(fields[1], 16) : (uint)Random.Shared.NextInt64(uint.MaxValue);
+
+    Span<byte> plaintext = stackalloc byte[8];
+    BinaryPrimitives.WriteUInt32LittleEndian(plaintext, seed);
+    BinaryPrimitives.WriteUInt32LittleEndian(plaintext[4..], nonce);
+    var encrypted = PortalTea.Encrypt(PortalTea.SeedKey, plaintext);
+
+    var message = new Message(MessageCommand.Seed);
+    message.AddPayload(encrypted);
+
+    Console.WriteLine($"Seed test: seed=0x{seed:X8} nonce=0x{nonce:X8} encrypted={Convert.ToHexString(encrypted)}");
+    DrainRawFrames(capturedFrames);
+    Send(writer, Xbox360Transport.WrapLegoFrame(message.GetBytes(NextMessageId(ref messageId))));
+
+    var rawReply = WaitForNextRawFrame(capturedFrames, TimeSpan.FromSeconds(2));
+    if (rawReply is null)
+    {
+        Console.WriteLine("No reply received within 2 seconds.");
+        return null;
+    }
+
+    var reply = ReadXbox360LegoReply(rawReply);
+    if (reply is null || reply.Payload.Length != 8)
+    {
+        Console.WriteLine($"Unexpected seed reply payload length: {reply?.Payload.Length ?? -1}.");
+        return null;
+    }
+
+    var decryptedReply = PortalTea.Decrypt(PortalTea.SeedKey, reply.Payload);
+    var echoedNonce = BinaryPrimitives.ReadUInt32LittleEndian(decryptedReply);
+    if (echoedNonce != nonce)
+    {
+        Console.WriteLine($"Seed echo mismatch: expected nonce 0x{nonce:X8}, got 0x{echoedNonce:X8}.");
+        return null;
+    }
+
+    Console.WriteLine("Seed accepted; nonce echo matches. The portal's RNG is now seeded.");
+    return new PortalRng(seed);
+}
+
+static void TestXbox360Challenge(SynchronizedUsbWriter writer, BlockingCollection<byte[]> capturedFrames, PortalRng? rng, string? arguments, ref byte messageId)
+{
+    if (rng is null)
+    {
+        throw new InvalidOperationException("Run test-seed first so the expected RNG output can be predicted.");
+    }
+
+    var challengePayload = string.IsNullOrWhiteSpace(arguments) ? RandomNumberGenerator.GetBytes(8) : ParseHex(arguments);
+    if (challengePayload.Length != 8)
+    {
+        throw new ArgumentException("Usage: test-challenge [8-byte-hex-payload]");
+    }
+
+    TryRunXbox360Challenge(writer, capturedFrames, rng, challengePayload, ref messageId);
+}
+
+static void TestXbox360ChallengeLoop(SynchronizedUsbWriter writer, BlockingCollection<byte[]> capturedFrames, PortalRng? rng, string? arguments, ref byte messageId)
+{
+    if (rng is null)
+    {
+        throw new InvalidOperationException("Run test-seed first so the expected RNG output can be predicted.");
+    }
+
+    // 25 matches dopheideb/LEGODimensions' NUM_CHALLENGES_PER_SEED soak-test constant.
+    var count = string.IsNullOrWhiteSpace(arguments) ? 25 : int.Parse(arguments);
+    var passed = 0;
+    for (var i = 1; i <= count; i++)
+    {
+        Console.WriteLine($"[{i}/{count}]");
+        if (TryRunXbox360Challenge(writer, capturedFrames, rng, RandomNumberGenerator.GetBytes(8), ref messageId) == true)
+        {
+            passed++;
+        }
+    }
+
+    Console.WriteLine($"Challenge loop complete: {passed}/{count} matched.");
+}
+
+static bool? TryRunXbox360Challenge(SynchronizedUsbWriter writer, BlockingCollection<byte[]> capturedFrames, PortalRng rng, byte[] challengePayload, ref byte messageId)
+{
+    var message = new Message(MessageCommand.Challenge);
+    message.AddPayload(challengePayload);
+
+    DrainRawFrames(capturedFrames);
+    Send(writer, Xbox360Transport.WrapLegoFrame(message.GetBytes(NextMessageId(ref messageId))));
+
+    var rawReply = WaitForNextRawFrame(capturedFrames, TimeSpan.FromSeconds(2));
+    if (rawReply is null)
+    {
+        Console.WriteLine("No reply received within 2 seconds.");
+        return null;
+    }
+
+    var reply = ReadXbox360LegoReply(rawReply);
+    if (reply is null || reply.Payload.Length != 8)
+    {
+        Console.WriteLine($"Unexpected challenge reply payload length: {reply?.Payload.Length ?? -1}.");
+        return null;
+    }
+
+    var decryptedChallenge = PortalTea.Decrypt(PortalTea.SeedKey, challengePayload);
+    Span<byte> expectedPlaintext = stackalloc byte[8];
+    BinaryPrimitives.WriteUInt32LittleEndian(expectedPlaintext, rng.Next());
+    decryptedChallenge.AsSpan(0, 4).CopyTo(expectedPlaintext[4..]);
+    var expectedReply = PortalTea.Encrypt(PortalTea.SeedKey, expectedPlaintext);
+
+    var matches = expectedReply.AsSpan().SequenceEqual(reply.Payload);
+    if (matches)
+    {
+        Console.WriteLine("Challenge reply matches the independently computed RNG output.");
+    }
+    else
+    {
+        Console.WriteLine($"Challenge reply MISMATCH: expected {Convert.ToHexString(expectedReply)}, got {Convert.ToHexString(reply.Payload)}.");
+    }
+
+    return matches;
 }
 
 static void SendControlIn(IUsbDevice device, SemaphoreSlim controlTransferGate, ManualResetEventSlim interruptReadsEnabled, string? arguments)

@@ -14,7 +14,7 @@ public class Xbox360TransportTests
         var report = Xbox360Transport.WrapLegoFrame(wake.GetBytes());
 
         Assert.Equal(
-            "0B14550FB000286329204C45474F2032303134F6000000000000000000000000",
+            "0B16550FB000286329204C45474F2032303134F6000000000000000000000000",
             Convert.ToHexString(report));
     }
 

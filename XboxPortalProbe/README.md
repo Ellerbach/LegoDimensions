@@ -77,6 +77,8 @@ interrupt monitoring active while issuing security requests through WinUSB.
 send <hex>
 wake
 xinput-led
+test-seed [seed-hex] [nonce-hex]
+test-challenge [8-byte-hex]
 xsm3-auth
 control-in <request-type request value index length>
 control-out <request-type request value index hex>
@@ -103,10 +105,21 @@ third-party `0x23`/`0x24` key material, so its live phase-one response currently
 fails validation. A captured `87` packet cannot be replayed because it is bound
 to that authentication session.
 
-Xbox 360 LEGO messages use report prefix `0B 14` followed by 30 bytes of the
+Xbox 360 LEGO messages use report prefix `0B 16` followed by 30 bytes of the
 standard LEGO frame. The `wake` command applies this wrapper automatically.
+An earlier capture had misread this prefix as `0B 14`; the corrected value is
+confirmed by the [dopheideb/LEGODimensions](https://github.com/dopheideb/LEGODimensions)
+toy pad firmware extraction.
 On original hardware, wrapped wake receives no reply before XSM3, including
 after XInput LED assignment or an early `84` acknowledgement. Interface 0
 therefore appears to remain gated until the full security exchange completes.
 Authentication and application commands remain diagnostic work and are not
 supported by the main library.
+
+`test-seed` and `test-challenge` exercise the base LEGO seed/challenge protocol
+(commands `0xB1`/`0xB3`), independently of Xbox security. The seed/nonce is
+TEA-encrypted with a global key recovered from the same firmware extraction
+(`PortalTea.cs`), and `test-challenge` independently reproduces the portal's
+internal RNG (`PortalRng.cs`, a Bob Jenkins "burtle"-style generator) to verify
+the device's response byte-for-byte. `test-seed` must succeed before
+`test-challenge` can predict a matching reply.
