@@ -583,8 +583,10 @@ namespace LegoDimensions
                 Message message = new Message(MessageCommand.TagList);
                 var getTagList = new ManualResetEvent(false);
                 var commandId = SendTrackedMessage(message, MessageCommand.TagList, getTagList);
-                while (!getTagList.WaitOne(ReceiveTimeout))
-                { }
+                // Bounded like the other tracked commands: an unbounded wait here would spin forever
+                // if the portal never replies, permanently blocking every other Xbox 360 command
+                // waiting on _xbox360CommandLock.
+                getTagList.WaitOne(ReceiveTimeout, true);
 
                 // We don't do anything as we manage the result globally
                 RemoveCommand(commandId);

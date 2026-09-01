@@ -14,8 +14,26 @@ WinUSB for testing. Select the device with hardware ID `USB\VID_0E6F&PID_0141`.
 Changing the driver may prevent the portal from working with an Xbox until the
 Microsoft driver is restored.
 
-The project references the native libusb runtime package, which places the
-platform-specific `libusb-1.0` library in the build output automatically.
+### Native libusb library
+
+`LibUsbDotNet` 3.0.224 (and its transitive `UsbDotNet.LibUsbNative` dependency,
+whose bundled native asset is deliberately excluded via `ExcludeAssets="native"`
+in the `.csproj`) does not ship a usable `libusb-1.0.dll` for this project. On
+Windows, run:
+
+```powershell
+.\XboxPortalProbe\tools\update-libusb.ps1
+```
+
+This downloads the latest official libusb Windows release and extracts
+`libusb-1.0.dll` into `XboxPortalProbe\native\`, which the `.csproj` then copies
+to the build output on every build. That file is not committed to source
+control (see `.gitignore`); re-run the script after a fresh clone or whenever
+you want to pick up a newer libusb release.
+
+On Linux/macOS, install libusb through your system package manager instead
+(e.g. `apt install libusb-1.0-0`, `brew install libusb`); the OS-provided
+library is used directly and `native/libusb-1.0.dll` is not applicable there.
 
 Run the probe:
 
@@ -67,18 +85,30 @@ in particular, `test-write` never supplies default bytes.
 ## Xbox 360 investigation
 
 If no Xbox One portal is present, the probe falls back to the Xbox 360 portal
-at `24C6:FA01`. This mode exposes raw endpoint and vendor control transfers:
+at `24C6:FA01`. The main library (`LegoDimensions.LegoPortal`) now supports this
+portal directly too; this mode remains useful for raw protocol investigation.
 
-The probe claims interface 0 for interrupt endpoints `81/01` and interface 3
-for XSM3 control transfers. Both interfaces are required on Windows to keep
-interrupt monitoring active while issuing security requests through WinUSB.
+The probe claims interface 0 for interrupt endpoints `81/01`. Interface 3
+(XSM3 security) is never claimed for normal operation - the toypad replies to
+LEGO application commands (wake, colors, tag reads, tag events) without any
+authentication. `xsm3-auth` and the `control-in`/`control-out` commands claim
+interface 3 on demand purely for XSM3 protocol investigation.
+
+All reads and writes happen sequentially on a single thread. A background
+thread continuously reading while a write happens on another thread was found
+to silently lose replies on this device/host stack - not a device-side gate.
 
 ```text
 send <hex>
 wake
 xinput-led
+test-color
+test-get-color
+test-list-tags
+test-read [index page]
 test-seed [seed-hex] [nonce-hex]
 test-challenge [8-byte-hex]
+listen [seconds]
 xsm3-auth
 control-in <request-type request value index length>
 control-out <request-type request value index hex>
@@ -103,18 +133,13 @@ acknowledgement (`84`). The host cryptography is validated against the published
 Microsoft-controller transaction. The original LEGO portal uses unpublished
 third-party `0x23`/`0x24` key material, so its live phase-one response currently
 fails validation. A captured `87` packet cannot be replayed because it is bound
-to that authentication session.
+to that authentication session. None of this is required for normal operation.
 
 Xbox 360 LEGO messages use report prefix `0B 16` followed by 30 bytes of the
 standard LEGO frame. The `wake` command applies this wrapper automatically.
 An earlier capture had misread this prefix as `0B 14`; the corrected value is
 confirmed by the [dopheideb/LEGODimensions](https://github.com/dopheideb/LEGODimensions)
 toy pad firmware extraction.
-On original hardware, wrapped wake receives no reply before XSM3, including
-after XInput LED assignment or an early `84` acknowledgement. Interface 0
-therefore appears to remain gated until the full security exchange completes.
-Authentication and application commands remain diagnostic work and are not
-supported by the main library.
 
 `test-seed` and `test-challenge` exercise the base LEGO seed/challenge protocol
 (commands `0xB1`/`0xB3`), independently of Xbox security. The seed/nonce is

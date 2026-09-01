@@ -22,7 +22,8 @@ try
 catch (DllNotFoundException)
 {
     Console.Error.WriteLine("The native libusb-1.0 library could not be loaded.");
-    Console.Error.WriteLine("Install libusb or place the matching libusb-1.0.dll beside XboxPortalProbe.exe.");
+    Console.Error.WriteLine("On Windows, run .\\XboxPortalProbe\\tools\\update-libusb.ps1 to fetch it into XboxPortalProbe\\native.");
+    Console.Error.WriteLine("On Linux/macOS, install libusb through your system package manager (e.g. apt install libusb-1.0-0, brew install libusb).");
     return 2;
 }
 
@@ -850,7 +851,17 @@ static Message? ReadXbox360LegoReply(byte[] rawFrame)
 
     var standardFrame = new byte[32];
     rawFrame.AsSpan(2, Math.Min(30, rawFrame.Length - 2)).CopyTo(standardFrame);
-    return Message.CreateFromBuffer(standardFrame, MessageSource.Portal);
+    try
+    {
+        return Message.CreateFromBuffer(standardFrame, MessageSource.Portal);
+    }
+    catch (ArgumentException exception)
+    {
+        // Message.CreateFromBuffer throws on an invalid type, payload size, or checksum; don't let
+        // one malformed frame take down a polling loop that has no other try/catch around it.
+        Console.WriteLine($"Malformed frame ({exception.Message}): {Convert.ToHexString(rawFrame)}");
+        return null;
+    }
 }
 
 static string? ReadLineWhilePollingForEvents(IntPtr rawHandle)
