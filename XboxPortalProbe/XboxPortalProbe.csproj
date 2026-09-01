@@ -9,7 +9,16 @@
 
   <ItemGroup>
     <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
+    <!-- LibUsbDotNet pulls this in transitively and its own bundled libusb-1.0.dll wins over ours; suppress it. -->
+    <PackageReference Include="UsbDotNet.LibUsbNative" Version="1.3.1" ExcludeAssets="native" />
     <ProjectReference Include="..\LegoDimensions\LegoDimensions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- LibUsbDotNet 3.0.224 doesn't bundle a native libusb-1.0.dll; supply one here so it survives clean/rebuild. -->
+    <!-- Remove first: the SDK's default glob already includes this as a plain None item with no copy metadata. -->
+    <None Remove="native\libusb-1.0.dll" />
+    <None Include="native\libusb-1.0.dll" CopyToOutputDirectory="PreserveNewest" Link="libusb-1.0.dll" Condition="Exists('native\libusb-1.0.dll')" />
   </ItemGroup>
 
   <ItemGroup>
