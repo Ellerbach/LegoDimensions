@@ -5,10 +5,14 @@ This document explains the communication protocol between the portal and the mac
 This protocol applies directly to the non-Xbox portals. The Xbox One portal carries
 the same 32-byte messages inside Xbox GIP; see the dedicated
 [Xbox One portal protocol](XboxPortalProtocol.md) for its USB transport and required
-initialization order.
+initialization order. The Xbox 360 portal carries the same 32-byte messages inside a
+simpler 2-byte-prefix wrapper; see the dedicated
+[Xbox 360 portal protocol](Xbox360PortalProtocol.md) for its USB transport and
+concurrency requirements.
 
 The non-Xbox portal vendor ID is `0x0E6F` and its product ID is `0x0241`. The Xbox
 One portal uses product ID `0x0141` and requires the additional GIP transport layer.
+The Xbox 360 portal uses vendor ID `0x24C6` and product ID `0xFA01`.
 
 ## Generalities
 
