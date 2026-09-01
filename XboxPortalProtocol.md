@@ -39,8 +39,9 @@ sequence below, and wraps or unwraps GIP automatically. Applications can use the
 same public API as they use for a standard portal.
 
 This document does not describe the Xbox 360 portal or claim that its transport is
-the same. Replacing the Windows driver may prevent the portal from working with an
-Xbox until the Microsoft driver is restored.
+the same; see the dedicated [Xbox 360 portal protocol](Xbox360PortalProtocol.md).
+Replacing the Windows driver may prevent the portal from working with an Xbox
+until the Microsoft driver is restored.
 
 ## USB transport
 

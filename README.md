@@ -19,11 +19,11 @@ Use this project to:
 * Set, flash, and fade each portal pad independently.
 * Read and write compatible NFC tags with the portal or a PN532 reader.
 * Build automations using the documented [Lego Dimensions protocol](LegoDimensionsProtocol.md).
-* Explore the separately documented [Xbox One portal protocol](XboxPortalProtocol.md).
+* Explore the separately documented [Xbox One portal protocol](XboxPortalProtocol.md) and
+  [Xbox 360 portal protocol](Xbox360PortalProtocol.md).
 
 > [!NOTE]
-> The main library supports standard portals and the Xbox One portal. The Xbox 360
-> portal is not yet supported. Some experiments are in progress!
+> The main library supports standard portals, the Xbox One portal, and the Xbox 360 portal.
 
 ## Sponsor this project
 
@@ -33,9 +33,11 @@ French and looking for a community of adult fans of Lego (AFOL)? Join [FreeLUG](
 
 ## Lego Dimensions portal
 
-The implementation supports standard Lego Dimensions portals and the Xbox One
-portal. Xbox One uses a GIP transport layer but exposes the same `LegoPortal` API;
-see the [Xbox One portal protocol](XboxPortalProtocol.md) for details.
+The implementation supports standard Lego Dimensions portals, the Xbox One
+portal, and the Xbox 360 portal. Xbox One uses a GIP transport layer and the
+Xbox 360 uses a simpler 2-byte-prefix wrapper, but both expose the same
+`LegoPortal` API; see the [Xbox One portal protocol](XboxPortalProtocol.md) and
+[Xbox 360 portal protocol](Xbox360PortalProtocol.md) for details.
 
 In this document and in the code, the portal refers to the Lego Dimensions where you place the vehicles and characters.
 

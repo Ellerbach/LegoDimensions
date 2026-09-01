@@ -1,10 +1,12 @@
 # Xbox portal probe
 
 This diagnostic console targets the Xbox One Lego Dimensions portal at USB ID
-`0E6F:0141`. The main library now supports this portal directly; this application
-remains useful for raw protocol investigation and command testing.
+`0E6F:0141` and the Xbox 360 Lego Dimensions portal at USB ID `24C6:FA01`. The
+main library now supports both portals directly; this application remains
+useful for raw protocol investigation and command testing.
 The complete transport and initialization sequence is documented in the
-[Xbox One portal protocol](../XboxPortalProtocol.md).
+[Xbox One portal protocol](../XboxPortalProtocol.md) and the
+[Xbox 360 portal protocol](../Xbox360PortalProtocol.md).
 
 ## Windows setup
 
@@ -87,6 +89,8 @@ in particular, `test-write` never supplies default bytes.
 If no Xbox One portal is present, the probe falls back to the Xbox 360 portal
 at `24C6:FA01`. The main library (`LegoDimensions.LegoPortal`) now supports this
 portal directly too; this mode remains useful for raw protocol investigation.
+See the [Xbox 360 portal protocol](../Xbox360PortalProtocol.md) for the verified
+frame format and concurrency requirements.
 
 The probe claims interface 0 for interrupt endpoints `81/01`. Interface 3
 (XSM3 security) is never claimed for normal operation - the toypad replies to
