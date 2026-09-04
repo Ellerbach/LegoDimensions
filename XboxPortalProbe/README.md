@@ -140,6 +140,19 @@ third-party `0x23`/`0x24` key material, so its live phase-one response currently
 fails validation. A captured `87` packet cannot be replayed because it is bound
 to that authentication session. None of this is required for normal operation.
 
+A real console-to-portal MITM capture confirmed several details of this
+implementation and the surrounding sequence: `xsm3-auth`'s two `87`/`86`/`83`
+verify rounds (not just one) match a genuine session exactly, byte for byte,
+including every request's `wValue`/`wLength`; the wake command's message ID is
+simply echoed back rather than required to be `0` (a real console sends `1`);
+and the console also issues two vendor requests (`c0 01 0000 0000 0004`,
+`c1 01 0100 0000 0014`) and a short, unwrapped 3-byte interrupt report
+(`01 03 01`, the `xinput-led` command below) once XSM3 completes and before
+the LEGO wake, plus a harmless, repeating, always-stalled vendor control-out
+poll of interface 2 (`41 00 001e/001f 0002`) throughout the session - that
+interface is the unused chatpad pass-through and is never claimed by this
+probe or the main library.
+
 Xbox 360 LEGO messages use report prefix `0B 16` followed by 30 bytes of the
 standard LEGO frame. The `wake` command applies this wrapper automatically.
 An earlier capture had misread this prefix as `0B 14`; the corrected value is

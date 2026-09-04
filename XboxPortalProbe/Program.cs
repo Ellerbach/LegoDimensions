@@ -681,7 +681,7 @@ static int ProbeXbox360(UsbContext context, int vendorId, int productId)
                     case "help":
                         Console.WriteLine("send <hex>                              Send exact bytes to endpoint 01");
                         Console.WriteLine("wake                                    Send an Xbox 360-wrapped LEGO wake frame; waits for and decodes the start reply");
-                        Console.WriteLine("xinput-led                              Send Xbox 360 LED command 01-03-06 (unconfirmed by any known protocol source)");
+                        Console.WriteLine("xinput-led                              Send Xbox 360 LED command 01-03-01 (confirmed by a real console MITM capture)");
                         Console.WriteLine("test-color                              Send a wrapped LEGO Color command (C0), red on the center pad");
                         Console.WriteLine("test-get-color                          Request center pad color (C1); waits briefly for a reply");
                         Console.WriteLine("test-fade                               Fade center pad to red (C2)");
@@ -709,7 +709,7 @@ static int ProbeXbox360(UsbContext context, int vendorId, int productId)
                         SendXbox360WakeAndReport(rawHandle);
                         break;
                     case "xinput-led":
-                        RawSend(rawHandle, [0x01, 0x03, 0x06]);
+                        RawSend(rawHandle, [0x01, 0x03, 0x01]);
                         break;
                     case "test-color":
                         SendXbox360Message(rawHandle, MessageCommand.Color, ref messageId, new byte[] { 0x01, 0xFF, 0x00, 0x00 });
