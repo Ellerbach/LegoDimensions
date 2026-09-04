@@ -368,9 +368,9 @@ namespace LegoDimensions.Tag
             new Vehicle(1225, "Goliath Armored Semi"   , "Knight Rider", new List<string>() { "Tow Bar","Super Strength","Electricity","Accelerator Switches","Gold LEGO Blowup" }),
             new Vehicle(1226, "K.I.T.T. Jet"           , "Knight Rider", new List<string>() { "Flight Docks and Flight Cargo Hooks","Gold LEGO Blowup","Silver LEGO Blowup","Tow Bar","Super Strength","Electricity","Accelerator Switches" }),
 
-            new Vehicle(1227, "Police helicopter"      , "LEGO City: Undercover", new List<string>() { "Flight Docks and Flight Cargo Hooks","Special Attack","Tow Bar" }),
-            new Vehicle(1228, "Unknown"                , "LEGO City: Undercover", new List<string>() { "Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack","Flight Docks and Flight Cargo Hooks","Tow Bar" }),
-            new Vehicle(1229, "Unknown"                , "LEGO City: Undercover", new List<string>() { "Flight Docks and Flight Cargo Hooks","Tow Bar","Drone Mazes","Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack" }),
+            new Vehicle(1227, "Police Helicopter"      , "LEGO City: Undercover", new List<string>() { "Flight Docks and Flight Cargo Hooks","Special Attack","Tow Bar" }),
+            new Vehicle(1228, "Police Hovercraft"      , "LEGO City: Undercover", new List<string>() { "Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack","Flight Docks and Flight Cargo Hooks","Tow Bar" }),
+            new Vehicle(1229, "Police Plane"           , "LEGO City: Undercover", new List<string>() { "Flight Docks and Flight Cargo Hooks","Tow Bar","Drone Mazes","Gold LEGO Blowup","Accelerator Switches","Super Jump","Special Attack" }),
 
             new Vehicle(1230, "Bionic Steed"           , "The LEGO Batman Movie", new List<string>() { "Super Jump","Special Weapon" }),
             new Vehicle(1231, "Bat Raptor"             , "The LEGO Batman Movie", new List<string>() { "Super Jump","Super Strength","Special Weapon" }),
