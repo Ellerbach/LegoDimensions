@@ -66,6 +66,23 @@ jobs:
         rm -rf ./artifacts
         mkdir -p ./artifacts
 
+    - name: Install Pico firmware toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libusb-1.0-0-dev
+
+    - name: Checkout Pico SDK 2.3.0
+      run: git clone --branch 2.3.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
+
+    - name: Build Pico firmware
+      env:
+        PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+        CMAKE_GENERATOR: Ninja
+      run: |
+        bash ./firmware/build-firmware.sh
+        cp ./firmware/pico_portal_simulator/build/pico_portal_simulator.uf2 ./artifacts/
+        cp ./firmware/pico_portal_xsm3_sidecar/build/pico_portal_xsm3_sidecar.uf2 ./artifacts/
+
     # Create a nuget Release
     - name: Pack the NuGet package
       run: |
@@ -120,4 +137,4 @@ jobs:
         body: ${{steps.github_release.outputs.changelog}}
         tag: "v${{ steps.gitversion.outputs.MajorMinorPatch }}"
         token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: "**/artifacts/*.nupkg,**/artifacts/LegoDimensionsReadNfc,**/artifacts/LegoDimensionsRunner,**/artifacts/*.exe"
+        artifacts: "**/artifacts/*.nupkg,**/artifacts/LegoDimensionsReadNfc,**/artifacts/LegoDimensionsRunner,**/artifacts/*.exe,**/artifacts/*.uf2"

@@ -25,6 +25,16 @@ Use this project to:
 > [!NOTE]
 > The main library supports standard portals, the Xbox One portal, and the Xbox 360 portal.
 
+## Pico virtual portal
+
+A Raspberry Pi Pico 2 W can emulate a browser-controlled LEGO Dimensions portal for standard PlayStation/Wii U, Xbox One, or Xbox 360 USB personalities. Virtual characters and vehicles can be dragged onto seven portal positions from the web interface.
+
+Download `pico_portal_simulator.uf2` from a GitHub release or [build the firmware](firmware/README.md). First-time devices create the open `Dimension-Toypad-Setup` Wi-Fi network; after setup, open `http://dimensions.local/`.
+
+Xbox 360 console authentication additionally requires `pico_portal_xsm3_sidecar.uf2`, a second Pico 2, and a genuine Xbox 360 portal. Standard and Xbox One modes need only the Pico 2 W.
+
+See the [Portal Simulator user guide](firmware/PORTAL_SIMULATOR_USER_GUIDE.md) for setup and operation.
+
 ## Sponsor this project
 
 If this library helps you revive a collection, build an installation, or create something new, [sponsor its continued development on GitHub](https://github.com/sponsors/Ellerbach). Sponsorship helps fund maintenance, hardware testing, documentation, and new features.
