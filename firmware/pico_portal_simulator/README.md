@@ -18,11 +18,27 @@ For a private local build, bootstrap credentials may be placed in `wifi_config.h
 
 ## Access
 
-After joining Wi-Fi, open `http://dimensions.local/`. The assigned IPv4 address printed on UART0 is a fallback. UART diagnostics use GPIO0 TX, GPIO1 RX, 115200 baud, and a common ground.
+After joining Wi-Fi, open `http://dimensions.local/`. The assigned IPv4 address is a fallback.
+
+## Optional UART debug output
+
+The simulator has a small diagnostic console that can be monitored with a 3.3 V USB-to-TTL serial adapter. This is useful for checking Wi-Fi connection details, the assigned IP address, mDNS startup, the selected USB personality, and Xbox 360 sidecar status.
+
+| Pico 2 W | USB-to-TTL adapter |
+| --- | --- |
+| GPIO0 UART0 TX | RX |
+| GPIO1 UART0 RX | TX (optional) |
+| GND | GND |
+
+Configure the terminal for 115200 baud, 8 data bits, no parity, and 1 stop bit. Only GPIO0 TX, adapter RX, and ground are required to read logs. Use a 3.3 V logic-level adapter; do not connect a 5 V TTL signal to a Pico GPIO. The native USB port must remain dedicated to portal emulation, so this firmware intentionally does not expose a USB serial port.
 
 ## Xbox 360 sidecar
 
 Xbox 360 requires valid XSM3 accessory authentication. Connect the optional sidecar as documented in [its README](../pico_portal_xsm3_sidecar/README.md). Standard and Xbox One modes do not require the second Pico.
+
+## Xbox One current limitation
+
+Xbox One uses another way of authenticating. And so far, it's not possible to have it in the simulator and a sidecar has not been implemented yet.
 
 ## Firmware behavior
 
