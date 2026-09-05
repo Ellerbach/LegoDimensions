@@ -37,4 +37,32 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal  
+      run: dotnet test --no-build --verbosity normal
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Install Arm toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libusb-1.0-0-dev
+
+    - name: Checkout Pico SDK 2.3.0
+      run: git clone --branch 2.3.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
+
+    - name: Build Pico firmware
+      env:
+        PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+        CMAKE_GENERATOR: Ninja
+      run: bash ./firmware/build-firmware.sh
+
+    - name: Upload firmware
+      uses: actions/upload-artifact@v6
+      with:
+        name: pico-firmware
+        path: |
+          firmware/pico_portal_simulator/build/pico_portal_simulator.uf2
+          firmware/pico_portal_xsm3_sidecar/build/pico_portal_xsm3_sidecar.uf2
