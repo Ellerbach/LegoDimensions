@@ -142,6 +142,34 @@ static int parameter_int(int count, char *names[], char *values[], const char *w
     return fallback;
 }
 
+static int hex_value(char value) {
+    if (value >= '0' && value <= '9') return value - '0';
+    if (value >= 'a' && value <= 'f') return value - 'a' + 10;
+    if (value >= 'A' && value <= 'F') return value - 'A' + 10;
+    return -1;
+}
+
+static bool url_decode(char *value) {
+    char *input = value;
+    char *output = value;
+    while (*input != '\0') {
+        if (*input == '+') {
+            *output++ = ' ';
+            input++;
+        } else if (*input == '%') {
+            int high = hex_value(input[1]);
+            int low = input[1] == '\0' ? -1 : hex_value(input[2]);
+            if (high < 0 || low < 0 || (high == 0 && low == 0)) return false;
+            *output++ = (char)((high << 4) | low);
+            input += 3;
+        } else {
+            *output++ = *input++;
+        }
+    }
+    *output = '\0';
+    return true;
+}
+
 static const char *api_handler(int index, int count, char *names[], char *values[]) {
     int pad = parameter_int(count, names, values, "pad", 0);
     if (index == 0) {
@@ -159,8 +187,8 @@ static const char *api_handler(int index, int count, char *names[], char *values
 
 static const char *wifi_handler(int index, int count, char *names[], char *values[]) {
     (void)index;
-    const char *ssid = NULL;
-    const char *password = "";
+    char *ssid = NULL;
+    char *password = NULL;
     for (int i = 0; i < count; i++) {
         if (strcmp(names[i], "ssid") == 0) {
             ssid = values[i];
@@ -168,13 +196,17 @@ static const char *wifi_handler(int index, int count, char *names[], char *value
             password = values[i];
         }
     }
-    if (ssid == NULL || strlen(ssid) == 0 || strlen(ssid) > WIFI_SETTINGS_SSID_MAX ||
-        strlen(password) > WIFI_SETTINGS_PASSWORD_MAX) {
+    if (ssid == NULL || !url_decode(ssid) || (password != NULL && !url_decode(password))) {
+        return "/";
+    }
+    const char *password_value = password != NULL ? password : "";
+    if (strlen(ssid) == 0 || strlen(ssid) > WIFI_SETTINGS_SSID_MAX ||
+        strlen(password_value) > WIFI_SETTINGS_PASSWORD_MAX) {
         return "/";
     }
     pending_wifi_settings = current_settings;
     snprintf(pending_wifi_settings.ssid, sizeof(pending_wifi_settings.ssid), "%s", ssid);
-    snprintf(pending_wifi_settings.password, sizeof(pending_wifi_settings.password), "%s", password);
+    snprintf(pending_wifi_settings.password, sizeof(pending_wifi_settings.password), "%s", password_value);
     wifi_save_time = make_timeout_time_ms(1500);
     wifi_save_pending = true;
     return "/wifi-saved.html";
@@ -184,8 +216,8 @@ static const char *portal_handler(int index, int count, char *names[], char *val
     (void)index;
     const char *type = NULL;
     const char *verbosity = NULL;
-    const char *ssid = NULL;
-    const char *password = NULL;
+    char *ssid = NULL;
+    char *password = NULL;
     for (int i = 0; i < count; i++) {
         if (strcmp(names[i], "type") == 0) type = values[i];
         else if (strcmp(names[i], "verbosity") == 0) verbosity = values[i];
@@ -212,6 +244,9 @@ static const char *portal_handler(int index, int count, char *names[], char *val
     } else if (verbosity != NULL && strcmp(verbosity, "all") == 0) {
         state_verbosity = STATE_VERBOSITY_ALL;
     } else {
+        return "/settings.html";
+    }
+    if ((ssid != NULL && !url_decode(ssid)) || (password != NULL && !url_decode(password))) {
         return "/settings.html";
     }
     pending_wifi_settings = current_settings;
@@ -339,11 +374,15 @@ static const char *build_json(size_t *length) {
             }
             used = append_json(buffer, used, "\"}");
         }
-        used = append_json(buffer, used, "],\"consoleId\":\"");
-        for (uint8_t j = 0; j < sizeof(relay.console_id); j++) {
-            used = append_json(buffer, used, "%02x", relay.console_id[j]);
+        used = append_json(buffer, used, "]");
+        if (verbosity == STATE_VERBOSITY_ALL) {
+            used = append_json(buffer, used, ",\"consoleId\":\"");
+            for (uint8_t j = 0; j < sizeof(relay.console_id); j++) {
+                used = append_json(buffer, used, "%02x", relay.console_id[j]);
+            }
+            used = append_json(buffer, used, "\"");
         }
-        used = append_json(buffer, used, "\",\"debugLog\":");
+        used = append_json(buffer, used, ",\"debugLog\":");
         {
             char log_text[256];
             xsm3_relay_get_debug_log(log_text, sizeof(log_text));

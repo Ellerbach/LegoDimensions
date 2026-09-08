@@ -12,7 +12,6 @@ project(pico_portal_simulator C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-set(PICO_RP2350_A2_SUPPORTED 0)
 pico_sdk_init()
 
 # libxsm3 (LGPL-2.1, github.com/InvoxiPlayGames/libxsm3) implements the XSM3

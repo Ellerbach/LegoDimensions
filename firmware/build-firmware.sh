@@ -10,7 +10,7 @@ build() {
   local source="$repo_root/firmware/$project"
   local output="$source/build"
 
-  cmake -S "$source" -B "$output" -DPICO_BOARD="$board" -DCMAKE_BUILD_TYPE=Release
+  cmake -S "$source" -B "$output" -DPICO_SDK_PATH="$PICO_SDK_PATH" -DPICO_BOARD="$board" -DCMAKE_BUILD_TYPE=Release
   cmake --build "$output" --parallel
 }
 

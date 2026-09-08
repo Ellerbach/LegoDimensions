@@ -72,7 +72,12 @@ jobs:
         sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libusb-1.0-0-dev
 
     - name: Checkout Pico SDK 2.3.0
-      run: git clone --branch 2.3.0 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
+      run: |
+        git init "$RUNNER_TEMP/pico-sdk"
+        git -C "$RUNNER_TEMP/pico-sdk" remote add origin https://github.com/raspberrypi/pico-sdk.git
+        git -C "$RUNNER_TEMP/pico-sdk" fetch --depth 1 origin 98a542c1a62fb549ffb5d66a3e5892b06276b670
+        git -C "$RUNNER_TEMP/pico-sdk" checkout --detach FETCH_HEAD
+        git -C "$RUNNER_TEMP/pico-sdk" submodule update --init --recursive --depth 1
 
     - name: Build Pico firmware
       env:
@@ -81,7 +86,6 @@ jobs:
       run: |
         bash ./firmware/build-firmware.sh
         cp ./firmware/pico_portal_simulator/build/pico_portal_simulator.uf2 ./artifacts/
-        cp ./firmware/pico_portal_xsm3_sidecar/build/pico_portal_xsm3_sidecar.uf2 ./artifacts/
 
     # Create a nuget Release
     - name: Pack the NuGet package

@@ -87,7 +87,3 @@ silently even with an otherwise-correct implementation. The game does not
 gate portal recognition on this category byte; it only requires XSM3
 authentication to succeed and the LEGO-specific WAKE/protocol handshake on
 interface 0 to respond correctly, both of which this firmware does.
-
-The optional sidecar (`firmware/pico_portal_xsm3_sidecar`, a security-only
-USB host relay for a genuine physical portal) still works as a fallback but
-is no longer required.

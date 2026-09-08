@@ -52,6 +52,48 @@ static uint8_t *add_option(uint8_t *at, uint8_t code, uint8_t length, const void
     return at + length;
 }
 
+static uint32_t lease_address(dhcp_server_t *server, const dhcp_message_t *request) {
+    size_t free_index = DHCP_SERVER_MAX_LEASES;
+    for (size_t index = 0; index < DHCP_SERVER_MAX_LEASES; index++) {
+        dhcp_lease_t *lease = &server->leases[index];
+        if (lease->hardware_address_length == request->hlen &&
+            memcmp(lease->hardware_address, request->chaddr, request->hlen) == 0) {
+            return lease->address;
+        }
+        if (free_index == DHCP_SERVER_MAX_LEASES && lease->hardware_address_length == 0) {
+            free_index = index;
+        }
+    }
+    if (free_index == DHCP_SERVER_MAX_LEASES) {
+        return 0;
+    }
+
+    uint32_t server_address = lwip_ntohl(ip4_addr_get_u32(ip_2_ip4(&server->address)));
+    uint32_t netmask = lwip_ntohl(ip4_addr_get_u32(ip_2_ip4(&server->netmask)));
+    uint32_t network_address = server_address & netmask;
+    uint32_t broadcast_address = network_address | ~netmask;
+    for (uint32_t candidate = network_address + 1; candidate < broadcast_address; candidate++) {
+        if (candidate == server_address) {
+            continue;
+        }
+        size_t index;
+        for (index = 0; index < DHCP_SERVER_MAX_LEASES; index++) {
+            if (server->leases[index].hardware_address_length != 0 &&
+                server->leases[index].address == candidate) {
+                break;
+            }
+        }
+        if (index == DHCP_SERVER_MAX_LEASES) {
+            dhcp_lease_t *lease = &server->leases[free_index];
+            memcpy(lease->hardware_address, request->chaddr, request->hlen);
+            lease->hardware_address_length = request->hlen;
+            lease->address = candidate;
+            return candidate;
+        }
+    }
+    return 0;
+}
+
 static void receive(void *argument, struct udp_pcb *pcb, struct pbuf *packet,
     const ip_addr_t *source, u16_t source_port) {
     (void)pcb;
@@ -62,7 +104,13 @@ static void receive(void *argument, struct udp_pcb *pcb, struct pbuf *packet,
     size_t length = pbuf_copy_partial(packet, &request, sizeof(request), 0);
     uint8_t requested_type = message_type(&request, length);
     pbuf_free(packet);
-    if (requested_type != DHCP_DISCOVER && requested_type != DHCP_REQUEST) {
+    if ((requested_type != DHCP_DISCOVER && requested_type != DHCP_REQUEST) ||
+        request.hlen == 0 || request.hlen > sizeof(request.chaddr)) {
+        return;
+    }
+
+    uint32_t offered_address = lease_address(server, &request);
+    if (offered_address == 0) {
         return;
     }
 
@@ -75,7 +123,7 @@ static void receive(void *argument, struct udp_pcb *pcb, struct pbuf *packet,
     reply.flags = request.flags;
     memcpy(reply.chaddr, request.chaddr, sizeof(reply.chaddr));
 
-    uint32_t offered = PP_HTONL(0xc0a80410u);
+    uint32_t offered = lwip_htonl(offered_address);
     memcpy(reply.yiaddr, &offered, 4);
     memcpy(reply.siaddr, &ip4_addr_get_u32(ip_2_ip4(&server->address)), 4);
     memcpy(reply.options, "\x63\x82\x53\x63", 4);

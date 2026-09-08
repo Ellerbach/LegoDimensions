@@ -19,21 +19,6 @@ static uint8_t gip_sequence;
 static uint8_t hid_rx[32];
 static volatile bool hid_rx_pending;
 
-// Visibility into whether the host is actually bus-resetting/re-enumerating
-// the device (as opposed to our own XSM3 responses being at fault) --
-// TinyUSB calls these on genuine mount/reset events, not on our say-so.
-void tud_mount_cb(void) {
-    critical_section_enter_blocking(&transport_lock);
-    transport_status.mount_count++;
-    critical_section_exit(&transport_lock);
-}
-
-void tud_umount_cb(void) {
-    critical_section_enter_blocking(&transport_lock);
-    transport_status.umount_count++;
-    critical_section_exit(&transport_lock);
-}
-
 // ANNOUNCE alone doesn't open the Xbox's GIP gateway for this accessory --
 // per BLOG.md's "Getting the gateway open" findings from earlier testing,
 // the accessory must also proactively probe with the LEGO "wake" command
@@ -48,6 +33,25 @@ typedef enum {
 static wake_state_t wake_state;
 static absolute_time_t wake_deadline;
 #define WAKE_REPLY_TIMEOUT_MS 250
+
+// Visibility into whether the host is actually bus-resetting/re-enumerating
+// the device (as opposed to our own XSM3 responses being at fault) --
+// TinyUSB calls these on genuine mount/reset events, not on our say-so.
+void tud_mount_cb(void) {
+    critical_section_enter_blocking(&transport_lock);
+    transport_status.mount_count++;
+    if (active_variant == PORTAL_USB_XBOX_ONE) {
+        announce_pending = true;
+        wake_state = WAKE_STATE_IDLE;
+    }
+    critical_section_exit(&transport_lock);
+}
+
+void tud_umount_cb(void) {
+    critical_section_enter_blocking(&transport_lock);
+    transport_status.umount_count++;
+    critical_section_exit(&transport_lock);
+}
 
 static void record_trace(const uint8_t *report, uint8_t length, bool portal_to_xbox) {
     if (transport_status.trace_count >= USB_TRACE_CAPACITY) {
@@ -249,10 +253,10 @@ void usb_transport_task(void) {
             return;
         }
         if (wake_state == WAKE_STATE_PROBE_SENT && time_reached(wake_deadline)) {
-            send_authenticate();
-            send_wake_probe();
-            wake_state = WAKE_STATE_AUTH_SENT;
-            wake_deadline = make_timeout_time_ms(WAKE_REPLY_TIMEOUT_MS);
+            if (send_authenticate() && send_wake_probe()) {
+                wake_state = WAKE_STATE_AUTH_SENT;
+                wake_deadline = make_timeout_time_ms(WAKE_REPLY_TIMEOUT_MS);
+            }
             return;
         }
         if (wake_state == WAKE_STATE_AUTH_SENT && time_reached(wake_deadline)) {
