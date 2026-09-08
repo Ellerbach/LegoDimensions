@@ -19,6 +19,36 @@ static uint8_t gip_sequence;
 static uint8_t hid_rx[32];
 static volatile bool hid_rx_pending;
 
+// Visibility into whether the host is actually bus-resetting/re-enumerating
+// the device (as opposed to our own XSM3 responses being at fault) --
+// TinyUSB calls these on genuine mount/reset events, not on our say-so.
+void tud_mount_cb(void) {
+    critical_section_enter_blocking(&transport_lock);
+    transport_status.mount_count++;
+    critical_section_exit(&transport_lock);
+}
+
+void tud_umount_cb(void) {
+    critical_section_enter_blocking(&transport_lock);
+    transport_status.umount_count++;
+    critical_section_exit(&transport_lock);
+}
+
+// ANNOUNCE alone doesn't open the Xbox's GIP gateway for this accessory --
+// per BLOG.md's "Getting the gateway open" findings from earlier testing,
+// the accessory must also proactively probe with the LEGO "wake" command
+// (0xb0) wrapped in GIP 0x21, and if nothing answers, follow up with GIP
+// AUTHENTICATE (0x06, payload 01 00) before retrying the probe once more.
+typedef enum {
+    WAKE_STATE_IDLE,
+    WAKE_STATE_PROBE_SENT,
+    WAKE_STATE_AUTH_SENT,
+    WAKE_STATE_DONE,
+} wake_state_t;
+static wake_state_t wake_state;
+static absolute_time_t wake_deadline;
+#define WAKE_REPLY_TIMEOUT_MS 250
+
 static void record_trace(const uint8_t *report, uint8_t length, bool portal_to_xbox) {
     if (transport_status.trace_count >= USB_TRACE_CAPACITY) {
         memmove(&transport_status.trace[0], &transport_status.trace[1],
@@ -132,11 +162,41 @@ static bool send_announce(void) {
     return transport_write(report, sizeof(report));
 }
 
+static uint8_t lego_frame_checksum(const uint8_t *data, uint8_t length) {
+    uint8_t sum = 0;
+    for (uint8_t i = 0; i < length; i++) {
+        sum = (uint8_t)(sum + data[i]);
+    }
+    return sum;
+}
+
+// Raw GIP command, sent exactly like send_announce() -- not a LEGO frame,
+// so it bypasses wrap()/unwrap() entirely.
+static bool send_authenticate(void) {
+    uint8_t report[6] = {0x06, 0x20, gip_sequence++, 0x02, 0x01, 0x00};
+    if (gip_sequence == 0) gip_sequence = 1;
+    return transport_write(report, sizeof(report));
+}
+
+// The LEGO "wake" query (command 0xb0, no payload), wrapped in GIP 0x21
+// like any other LEGO frame -- sent proactively to check whether the
+// gateway is already warm, per BLOG.md.
+static bool send_wake_probe(void) {
+    uint8_t frame[32] = {0};
+    frame[0] = 0x55;
+    frame[1] = 0x02;
+    frame[2] = 0xb0;
+    frame[3] = 0x00;
+    frame[4] = lego_frame_checksum(frame, 4);
+    return send_frame(frame);
+}
+
 void usb_transport_init(portal_usb_variant_t variant) {
     active_variant = variant;
     memset(&transport_status, 0, sizeof(transport_status));
     frame_pending = false;
     announce_pending = variant == PORTAL_USB_XBOX_ONE;
+    wake_state = WAKE_STATE_IDLE;
     gip_sequence = 2;
     hid_rx_pending = false;
     critical_section_init(&transport_lock);
@@ -167,6 +227,8 @@ void usb_transport_get_status(usb_transport_status_t *status) {
     *status = transport_status;
     status->mounted = tud_mounted();
     critical_section_exit(&transport_lock);
+    usb_descriptors_get_diagnostics(&status->device_desc_requests, &status->config_desc_requests,
+        &status->ms_os_string_requests, &status->ms_os_compat_requests);
 }
 
 void usb_transport_task(void) {
@@ -176,6 +238,26 @@ void usb_transport_task(void) {
     if (announce_pending && tud_mounted()) {
         if (send_announce()) announce_pending = false;
         return;
+    }
+
+    if (active_variant == PORTAL_USB_XBOX_ONE && tud_mounted()) {
+        if (wake_state == WAKE_STATE_IDLE) {
+            if (send_wake_probe()) {
+                wake_state = WAKE_STATE_PROBE_SENT;
+                wake_deadline = make_timeout_time_ms(WAKE_REPLY_TIMEOUT_MS);
+            }
+            return;
+        }
+        if (wake_state == WAKE_STATE_PROBE_SENT && time_reached(wake_deadline)) {
+            send_authenticate();
+            send_wake_probe();
+            wake_state = WAKE_STATE_AUTH_SENT;
+            wake_deadline = make_timeout_time_ms(WAKE_REPLY_TIMEOUT_MS);
+            return;
+        }
+        if (wake_state == WAKE_STATE_AUTH_SENT && time_reached(wake_deadline)) {
+            wake_state = WAKE_STATE_DONE; // give up retrying; keep serving RX normally
+        }
     }
 
     if (frame_pending) {
@@ -208,6 +290,7 @@ void usb_transport_task(void) {
         }
         if (length == 0) return;
         record_rx(report, (uint8_t)length);
+        wake_state = WAKE_STATE_DONE; // any real reply confirms the gateway is open
 
         // 01 03 xx is the Xbox player-light initialization command. Its
         // completed 3-byte OUT transfer is acknowledged by USB when read.

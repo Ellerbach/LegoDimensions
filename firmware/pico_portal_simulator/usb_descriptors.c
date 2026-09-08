@@ -61,7 +61,23 @@ void usb_descriptors_set_variant(portal_usb_variant_t variant) {
     active_variant = variant;
 }
 
+// No visibility into whether the console ever queries the MS OS descriptor
+// trust mechanism at all -- counted here and surfaced in state.json.
+static uint32_t device_desc_requests;
+static uint32_t config_desc_requests;
+static uint32_t ms_os_string_requests;
+static uint32_t ms_os_compat_requests;
+
+void usb_descriptors_get_diagnostics(uint32_t *device_desc, uint32_t *config_desc,
+        uint32_t *ms_os_string, uint32_t *ms_os_compat) {
+    *device_desc = device_desc_requests;
+    *config_desc = config_desc_requests;
+    *ms_os_string = ms_os_string_requests;
+    *ms_os_compat = ms_os_compat_requests;
+}
+
 uint8_t const *tud_descriptor_device_cb(void) {
+    device_desc_requests++;
     if (active_variant == PORTAL_USB_XBOX_360) {
         return (uint8_t const *)&xbox_360_device_descriptor;
     }
@@ -124,6 +140,7 @@ static uint8_t const standard_report_descriptor[] = {
 
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
     (void)index;
+    config_desc_requests++;
     if (active_variant == PORTAL_USB_XBOX_360) return xbox_360_configuration_descriptor;
     if (active_variant == PORTAL_USB_XBOX_ONE) return xbox_one_configuration_descriptor;
     return standard_configuration_descriptor;
@@ -138,7 +155,7 @@ static const char *xbox_360_strings[] = {
     NULL,
     "Warner Bros.",
     "LEGO(R) DIMENSIONS(TM)",
-    "411114ED",
+    "03108E28",
 };
 
 static const char *xbox_one_strings[] = {
@@ -183,6 +200,7 @@ static uint16_t string_buffer[32];
 uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     (void)langid;
     if (active_variant == PORTAL_USB_XBOX_ONE && index == 0xee) {
+        ms_os_string_requests++;
         return (uint16_t const *)ms_os_string_desc;
     }
     if (active_variant == PORTAL_USB_XBOX_360 && index == 4) {
@@ -216,6 +234,7 @@ bool usb_descriptors_control_xfer(uint8_t rhport, uint8_t stage,
     if (active_variant != PORTAL_USB_XBOX_ONE || stage != CONTROL_STAGE_SETUP) return false;
     if (request->bmRequestType_bit.type == TUSB_REQ_TYPE_VENDOR &&
             request->bRequest == MS_OS_VENDOR_CODE && request->wIndex == 4) {
+        ms_os_compat_requests++;
         return tud_control_xfer(rhport, request,
             (void *)(uintptr_t)ms_os_compat_id_desc, sizeof(ms_os_compat_id_desc));
     }

@@ -15,4 +15,3 @@ build() {
 }
 
 build pico_portal_simulator pico2_w
-build pico_portal_xsm3_sidecar pico2

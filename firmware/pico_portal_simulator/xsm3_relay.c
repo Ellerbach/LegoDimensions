@@ -4,29 +4,46 @@
 #include <string.h>
 
 #include "device/dcd.h"
-#include "hardware/gpio.h"
-#include "hardware/uart.h"
 #include "pico/critical_section.h"
+#include "pico/rand.h"
 #include "pico/time.h"
 
-#include "uart_bridge.h"
+#include "xsm3.h"
+#include "xsm3_debug_log.h"
 
-#define RELAY_UART uart1
-#define RELAY_UART_TX_PIN 8
-#define RELAY_UART_RX_PIN 9
-#define RELAY_UART_BAUD 921600
 #define XSM3_INTERFACE 3
-#define XSM3_TIMEOUT_MS 2000
+// VID/PID of the genuine LEGO Dimensions Xbox 360 portal. NOTE: this is the
+// XSM3 identification packet's own embedded product ID, confirmed via a
+// real capture -- NOT the same as the outer USB device descriptor's PID
+// (0xFA01), which is a separate field entirely.
+#define XSM3_VID 0x24C6
+#define XSM3_PID 0x5000
+// CONFIRMED ROOT CAUSE (via real-hardware testing): a real portal reports
+// category 0x82 on the wire, but xsm3_root_key_0x23/0x24 (used to derive
+// the per-console response-encryption keys) are only publicly known for
+// the "1st party controller" keyvault slot -- the portal-specific keys
+// are unpublished. Presenting as a generic controller (0x02, the untouched
+// upstream placeholder) makes the console validate our response against
+// the controller keyvault slot, which matches these keys. Confirmed working
+// end-to-end: console completes 0x83/0x84/0x87 and the game's own LEGO
+// protocol traffic starts flowing.
+#define XSM3_CATEGORY 0x02
 
-static frame_parser_t parser;
-static uint8_t control_out_buffer[FRAME_MAX_PAYLOAD];
-static uint8_t control_in_buffer[FRAME_MAX_PAYLOAD];
-static bool control_in_pending;
-static uint8_t control_in_rhport;
-static tusb_control_request_t control_in_request;
-static absolute_time_t control_in_deadline;
-static uint32_t control_in_transaction;
-static bool xsm3_ack_84_sent;
+// Two-byte state values returned for request 0x86 ("done?" poll). A real
+// capture showed the portal answers 1 on the first poll after a 0x82/0x87
+// cycle, then 2 on every poll after that -- not a constant "always
+// complete" -- and the console only proceeds to 0x83 once it's seen that
+// 1-then-2 transition.
+static const uint8_t STATE_PENDING[2] = {0x01, 0x00};
+static const uint8_t STATE_COMPLETE[2] = {0x02, 0x00};
+static uint8_t xsm3_poll_count;
+
+static uint8_t control_out_buffer[64];
+static uint16_t xsm3_response_length;
+static bool xsm3_initialised;
+// Mutable copy of xsm3_id_data_ms_controller (upstream's copy is const) with
+// our own serial/VID/PID patched in.
+static uint8_t identification_data[0x1D];
 static xsm3_relay_status_t relay_status;
 static xsm3_trace_entry_t trace_entries[XSM3_TRACE_CAPACITY];
 static uint8_t trace_start;
@@ -34,8 +51,11 @@ static uint8_t trace_count;
 static uint32_t trace_sequence;
 static uint32_t trace_transaction;
 static critical_section_t trace_lock;
-static uint8_t xinput_capability_response[4] = {0x41, 0x11, 0x14, 0xed};
+// Genuine hardware serial (confirmed via ToysToLifeLib's X360_SERIAL/xinput
+// constants), used both here and as usb_descriptors.c's iSerialNumber string.
+static uint8_t xinput_capability_response[4] = {0x03, 0x10, 0x8E, 0x28};
 static uint8_t xinput_descriptor_response[20] = {0x00, 0x14};
+static uint8_t xinput_vibration_response[8] = {0x00, 0x08};
 
 static void trace_event(xsm3_trace_event_t event, xsm3_trace_status_t status,
     int16_t status_code, uint32_t transaction,
@@ -68,118 +88,61 @@ static void trace_event(xsm3_trace_event_t event, xsm3_trace_status_t status,
     critical_section_exit(&trace_lock);
 }
 
-static void stall_control(uint8_t rhport) {
-    dcd_edpt_stall(rhport, 0);
-    dcd_edpt_stall(rhport, TUSB_DIR_IN_MASK);
+// XOR checksum over the packet body, matching libxsm3's own (unexported)
+// xsm3_calculate_checksum() so a locally-patched identification packet
+// still passes its internal checksum verification.
+static uint8_t identification_checksum(const uint8_t *packet) {
+    uint8_t length = (uint8_t)(packet[4] + 5);
+    uint8_t sum = 0;
+    for (uint8_t i = 5; i < length; i++) sum ^= packet[i];
+    return sum;
 }
 
-static int pump_frame(void) {
-    while (uart_is_readable(RELAY_UART)) {
-        if (!frame_parser_feed(&parser, uart_getc(RELAY_UART))) continue;
-
-        if (parser.kind == FRAME_LINK_STATUS && parser.length >= 1) {
-            bool connected = parser.payload[0] == LINK_STATUS_PORTAL_CONNECTED;
-            if (connected != relay_status.sidecar_connected) {
-                relay_status.sidecar_connected = connected;
-                printf("XSM3 sidecar: real portal %s.\n", connected ? "connected" : "disconnected");
-            }
-        } else if (parser.kind == FRAME_CONTROL_IN_RESPONSE && control_in_pending) {
-            control_in_pending = false;
-            if (parser.length < 1 || parser.payload[0] != 0) {
-                relay_status.errors++;
-                trace_event(XSM3_TRACE_CONTROL_IN_RESPONSE, XSM3_TRACE_ERROR,
-                    parser.length >= 1 ? parser.payload[0] : -1,
-                    control_in_transaction, &control_in_request,
-                    parser.length > 1 ? parser.payload + 1 : NULL,
-                    parser.length > 1 ? parser.length - 1 : 0);
-                stall_control(control_in_rhport);
-            } else {
-                relay_status.responses++;
-                uint16_t length = parser.length - 1;
-                if (length > control_in_request.wLength) length = control_in_request.wLength;
-                trace_event(XSM3_TRACE_CONTROL_IN_RESPONSE, XSM3_TRACE_OK, 0,
-                    control_in_transaction, &control_in_request,
-                    parser.payload + 1, length);
-                memcpy(control_in_buffer, parser.payload + 1, length);
-                tud_control_xfer(control_in_rhport, &control_in_request,
-                    control_in_buffer, length);
-            }
+// Handles the 0x81 identification request: pick a fresh random serial and
+// identify as the genuine portal the first time; every re-auth after that
+// reuses the same identity, since the console stops trusting a device that
+// changes serials mid-session.
+static void xsm3_handle_identify(void) {
+    if (!xsm3_initialised) {
+        memcpy(identification_data, xsm3_id_data_ms_controller, sizeof(identification_data));
+        for (size_t i = 0; i < 0x0C; i++) {
+            identification_data[5 + i] = (uint8_t)(get_rand_32() & 0xFF);
         }
-        return parser.kind;
+        uint16_t vid = XSM3_VID;
+        uint16_t pid = XSM3_PID;
+        identification_data[5 + 0xE] = XSM3_CATEGORY;
+        memcpy(identification_data + 5 + 0xF, &vid, sizeof(vid));
+        memcpy(identification_data + 5 + 0x11, &pid, sizeof(pid));
+        identification_data[0x1C] = identification_checksum(identification_data);
+
+        xsm3_initialise_state();
+        xsm3_set_identification_data(identification_data);
+        xsm3_initialised = true;
     }
-    return -1;
-}
-
-static bool wait_for_frame(uint8_t wanted_kind) {
-    absolute_time_t deadline = make_timeout_time_ms(XSM3_TIMEOUT_MS);
-    while (!time_reached(deadline)) {
-        if (pump_frame() == wanted_kind) return true;
-    }
-    return false;
-}
-
-static bool relay_control_out(tusb_control_request_t const *request, uint16_t data_length,
-    uint32_t transaction) {
-    if (data_length + 6 > FRAME_MAX_PAYLOAD) return false;
-
-    trace_event(XSM3_TRACE_CONTROL_OUT_REQUEST, XSM3_TRACE_SENT, 0,
-        transaction, request, control_out_buffer, data_length);
-
-    uint8_t payload[FRAME_MAX_PAYLOAD] = {
-        request->bmRequestType, request->bRequest,
-        (uint8_t)request->wValue, (uint8_t)(request->wValue >> 8),
-        (uint8_t)request->wIndex, (uint8_t)(request->wIndex >> 8),
-    };
-    memcpy(payload + 6, control_out_buffer, data_length);
-    uart_send_frame(RELAY_UART, FRAME_CONTROL_OUT_REQUEST,
-        payload, (uint8_t)(data_length + 6));
-
-    if (!wait_for_frame(FRAME_CONTROL_OUT_ACK)) {
-        relay_status.timeouts++;
-        trace_event(XSM3_TRACE_CONTROL_OUT_ACK, XSM3_TRACE_TIMEOUT, -1,
-            transaction, request, NULL, 0);
-        return false;
-    }
-    if (parser.length >= 1 && parser.payload[0] == 0) {
-        relay_status.responses++;
-        trace_event(XSM3_TRACE_CONTROL_OUT_ACK, XSM3_TRACE_OK, 0,
-            transaction, request, NULL, 0);
-        return true;
-    }
-    relay_status.errors++;
-    trace_event(XSM3_TRACE_CONTROL_OUT_ACK, XSM3_TRACE_ERROR,
-        parser.length >= 1 ? parser.payload[0] : -1,
-        transaction, request, NULL, 0);
-    return false;
 }
 
 void xsm3_relay_init(void) {
-    uart_init(RELAY_UART, RELAY_UART_BAUD);
-    gpio_set_function(RELAY_UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(RELAY_UART_RX_PIN, GPIO_FUNC_UART);
-    uart_set_hw_flow(RELAY_UART, false, false);
-    uart_set_format(RELAY_UART, 8, 1, UART_PARITY_NONE);
-    uart_set_fifo_enabled(RELAY_UART, true);
-    frame_parser_init(&parser);
     memset(&relay_status, 0, sizeof(relay_status));
+    relay_status.sidecar_connected = true; // local crypto engine, always ready
     trace_start = 0;
     trace_count = 0;
     trace_sequence = 0;
     trace_transaction = 0;
+    xsm3_initialised = false;
+    xsm3_response_length = 0;
+    xsm3_poll_count = 0;
     critical_section_init(&trace_lock);
-    printf("XSM3 sidecar UART: GPIO8 TX, GPIO9 RX at 921600 baud.\n");
+    xsm3_debug_log_init();
+    printf("XSM3: local authentication engine ready (no real portal/sidecar needed).\n");
+}
+
+size_t xsm3_relay_get_debug_log(char *out, size_t max_len) {
+    return xsm3_debug_log_get(out, max_len);
 }
 
 void xsm3_relay_task(void) {
-    while (pump_frame() >= 0) {}
-    if (control_in_pending && time_reached(control_in_deadline)) {
-        control_in_pending = false;
-        relay_status.timeouts++;
-        trace_event(XSM3_TRACE_CONTROL_IN_RESPONSE, XSM3_TRACE_TIMEOUT, -1,
-            control_in_transaction, &control_in_request, NULL, 0);
-        stall_control(control_in_rhport);
-        printf("XSM3 sidecar response timed out.\n");
-    }
+    // Nothing to pump; challenge init/verify complete synchronously inside
+    // xsm3_relay_control_xfer() now that authentication runs locally.
 }
 
 void xsm3_relay_get_status(xsm3_relay_status_t *status) {
@@ -225,8 +188,37 @@ bool xsm3_relay_control_xfer(uint8_t rhport, uint8_t stage,
         return tud_control_xfer(rhport, request, xinput_descriptor_response,
             sizeof(xinput_descriptor_response));
     }
+    // XInput vibration capabilities -- previously unhandled, causing a STALL
+    // on this request (falls outside interface 3, so it hit the generic
+    // "unsupported" path since bmRequestType 0xC1 doesn't match the 0x41
+    // OUT-ack fallback either).
+    if (request->bmRequestType == 0xc1 && request->bRequest == 0x01 &&
+            request->wValue == 0x0000 && request->wIndex == 0 && request->wLength == 8) {
+        if (stage != CONTROL_STAGE_SETUP) return true;
+        uint32_t transaction = ++trace_transaction;
+        trace_event(XSM3_TRACE_CONTROL_IN_REQUEST, XSM3_TRACE_SENT, 0,
+            transaction, request, NULL, 0);
+        trace_event(XSM3_TRACE_CONTROL_IN_RESPONSE, XSM3_TRACE_OK, 0,
+            transaction, request, xinput_vibration_response,
+            sizeof(xinput_vibration_response));
+        return tud_control_xfer(rhport, request, xinput_vibration_response,
+            sizeof(xinput_vibration_response));
+    }
 
     if ((request->wIndex & 0xff) != XSM3_INTERFACE) {
+        // Generic ack for vendor OUT requests to any other interface (e.g.
+        // controller LED/rumble config on interface 1) that we don't
+        // otherwise implement -- a real console sends these, and stalling
+        // them (as we did before) risks it giving up on the whole device.
+        if (request->bmRequestType == 0x41) {
+            if (stage == CONTROL_STAGE_SETUP) {
+                return request->wLength == 0 ? tud_control_status(rhport, request)
+                                              : tud_control_xfer(rhport, request, control_out_buffer,
+                                                    request->wLength > sizeof(control_out_buffer) ?
+                                                        sizeof(control_out_buffer) : request->wLength);
+            }
+            return true;
+        }
         if (stage == CONTROL_STAGE_SETUP) {
             relay_status.unsupported_requests++;
             relay_status.last_unsupported_bm_request_type = request->bmRequestType;
@@ -239,56 +231,102 @@ bool xsm3_relay_control_xfer(uint8_t rhport, uint8_t stage,
     }
 
     bool device_to_host = request->bmRequestType_bit.direction == TUSB_DIR_IN;
+
     if (stage == CONTROL_STAGE_SETUP) {
         relay_status.requests++;
         relay_status.last_request = request->bRequest;
         relay_status.last_interface = (uint8_t)request->wIndex;
         uint32_t transaction = ++trace_transaction;
+
         if (device_to_host) {
-            if (request->bRequest == 0x81) xsm3_ack_84_sent = false;
-            uint8_t payload[8] = {
-                request->bmRequestType, request->bRequest,
-                (uint8_t)request->wValue, (uint8_t)(request->wValue >> 8),
-                (uint8_t)request->wIndex, (uint8_t)(request->wIndex >> 8),
-                (uint8_t)request->wLength, (uint8_t)(request->wLength >> 8),
-            };
             trace_event(XSM3_TRACE_CONTROL_IN_REQUEST, XSM3_TRACE_SENT, 0,
                 transaction, request, NULL, 0);
-            uart_send_frame(RELAY_UART, FRAME_CONTROL_IN_REQUEST, payload, sizeof(payload));
-            control_in_pending = true;
-            control_in_rhport = rhport;
-            control_in_request = *request;
-            control_in_transaction = transaction;
-            control_in_deadline = make_timeout_time_ms(XSM3_TIMEOUT_MS);
-            return true;
+
+            const uint8_t *response = NULL;
+            uint16_t response_length = 0;
+            switch (request->bRequest) {
+                case 0x81:
+                    xsm3_handle_identify();
+                    response = identification_data;
+                    response_length = sizeof(identification_data);
+                    break;
+                case 0x83:
+                    response = xsm3_challenge_response;
+                    response_length = xsm3_response_length;
+                    break;
+                case 0x86:
+                    xsm3_poll_count++;
+                    response = xsm3_poll_count <= 1 ? STATE_PENDING : STATE_COMPLETE;
+                    response_length = sizeof(STATE_COMPLETE);
+                    break;
+                default:
+                    relay_status.errors++;
+                    trace_event(XSM3_TRACE_CONTROL_IN_RESPONSE, XSM3_TRACE_ERROR, -1,
+                        transaction, request, NULL, 0);
+                    return false;
+            }
+            if (response_length > request->wLength) response_length = request->wLength;
+            trace_event(XSM3_TRACE_CONTROL_IN_RESPONSE, XSM3_TRACE_OK, 0,
+                transaction, request, response, response_length);
+            relay_status.responses++;
+            return tud_control_xfer(rhport, request, (void *)response, response_length);
         }
 
-        if (request->wLength > sizeof(control_out_buffer) || request->wLength + 6 > FRAME_MAX_PAYLOAD) {
-            return false;
-        }
+        // Host-to-device (OUT).
         if (request->wLength == 0) {
-            if (request->bRequest == 0x84 && xsm3_ack_84_sent) {
-                return tud_control_status(rhport, request);
-            }
-            if (!relay_control_out(request, 0, transaction)) return false;
-            if (request->bRequest == 0x84) xsm3_ack_84_sent = true;
+            // 0x84 is a plain "pass" acknowledgement between challenge
+            // rounds; nothing for libxsm3 to process.
+            trace_event(XSM3_TRACE_CONTROL_OUT_REQUEST, XSM3_TRACE_SENT, 0,
+                transaction, request, NULL, 0);
+            trace_event(XSM3_TRACE_CONTROL_OUT_ACK, XSM3_TRACE_OK, 0,
+                transaction, request, NULL, 0);
+            relay_status.responses++;
             return tud_control_status(rhport, request);
         }
+        if (request->wLength > sizeof(control_out_buffer)) {
+            return false;
+        }
+        trace_event(XSM3_TRACE_CONTROL_OUT_REQUEST, XSM3_TRACE_SENT, 0,
+            transaction, request, NULL, 0);
         return tud_control_xfer(rhport, request, control_out_buffer, request->wLength);
     }
 
-    if (stage == CONTROL_STAGE_DATA && !device_to_host) {
-        return relay_control_out(request, request->wLength, relay_status.requests);
+    // Computed at ACK (after the STATUS packet is already on the wire), not
+    // DATA, matching EmuToLife's reference -- avoids holding up the status
+    // ack behind the crypto computation, in case the console is stricter
+    // about control-transfer timing than a permissive USB host would be.
+    if (stage == CONTROL_STAGE_ACK && !device_to_host) {
+        switch (request->bRequest) {
+            case 0x82:
+                xsm3_do_challenge_init(control_out_buffer);
+                xsm3_response_length = 0x5 + 0x28 + 1;
+                xsm3_poll_count = 0;
+                memcpy(relay_status.console_id, xsm3_console_id, sizeof(relay_status.console_id));
+                break;
+            case 0x87:
+                xsm3_do_challenge_verify(control_out_buffer);
+                xsm3_response_length = 0x5 + 0x10 + 1;
+                xsm3_poll_count = 0;
+                break;
+            default:
+                break;
+        }
+        relay_status.responses++;
+        // Logged here (not at SETUP) since control_out_buffer only holds
+        // the real received bytes once the DATA stage has landed them.
+        trace_event(XSM3_TRACE_CONTROL_OUT_ACK, XSM3_TRACE_OK, 0,
+            relay_status.requests, request, control_out_buffer, request->wLength);
+        return true;
     }
+
     return true;
 }
 
 bool xsm3_relay_app_exchange(const uint8_t request[32], uint8_t response[32]) {
-    if (!relay_status.sidecar_connected || control_in_pending) return false;
-    uart_send_frame(RELAY_UART, FRAME_APP_REQUEST, request, 32);
-    if (!wait_for_frame(FRAME_APP_RESPONSE) || parser.length != 33 || parser.payload[0] != 0) {
-        return false;
-    }
-    memcpy(response, parser.payload + 1, 32);
-    return true;
+    (void)request;
+    (void)response;
+    // No real portal is present anymore; nothing to exchange app-level
+    // (LEGO tag) traffic with.
+    return false;
 }
+

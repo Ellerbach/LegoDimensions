@@ -31,7 +31,7 @@ A Raspberry Pi Pico 2 W can emulate a browser-controlled LEGO Dimensions portal 
 
 Download `pico_portal_simulator.uf2` from a GitHub release or [build the firmware](firmware/README.md). First-time devices create the open `Dimension-Toypad-Setup` Wi-Fi network; after setup, open `http://dimensions.local/`.
 
-Xbox 360 console authentication additionally requires `pico_portal_xsm3_sidecar.uf2`, a second Pico 2, and a genuine Xbox 360 portal. Standard and Xbox One modes need only the Pico 2 W.
+![Portal Simulator Main Page](./docs/portal-simulator-main.png)
 
 See the [Portal Simulator user guide](firmware/PORTAL_SIMULATOR_USER_GUIDE.md) for setup and operation.
 

@@ -174,7 +174,9 @@ int main(void) {
     }
     bool wifi_connected = false;
     bool web_server_started = false;
-    if (!start_wifi_radio()) {
+    if (wifi_settings.ssid[0] == '\0') {
+        printf("No Wi-Fi SSID configured; skipping straight to the setup access point.\n");
+    } else if (!start_wifi_radio()) {
         printf("ERROR: CYW43 radio startup failed after 3 attempts.\n");
         printf("Check that the board is a Pico 2 W, then fully remove and restore power.\n");
         printf("USB simulation remains available.\n");

@@ -2,6 +2,7 @@
 #define XSM3_RELAY_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "tusb.h"
@@ -27,6 +28,7 @@ typedef struct {
     uint16_t last_unsupported_value;
     uint16_t last_unsupported_index;
     uint16_t last_unsupported_length;
+    uint8_t console_id[8]; // extracted from the decrypted 0x82 challenge-init payload
 } xsm3_relay_status_t;
 
 typedef enum {
@@ -68,6 +70,9 @@ void xsm3_relay_init(void);
 void xsm3_relay_task(void);
 void xsm3_relay_get_status(xsm3_relay_status_t *status);
 void xsm3_relay_get_trace(xsm3_trace_snapshot_t *trace);
+// Copies libxsm3's own captured printf() diagnostics (checksum/MAC failure
+// messages) into out, nul-terminated. See xsm3_debug_log.h.
+size_t xsm3_relay_get_debug_log(char *out, size_t max_len);
 bool xsm3_relay_app_exchange(const uint8_t request[32], uint8_t response[32]);
 bool xsm3_relay_control_xfer(uint8_t rhport, uint8_t stage,
     tusb_control_request_t const *request);

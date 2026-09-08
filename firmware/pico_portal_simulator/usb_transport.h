@@ -26,12 +26,18 @@ typedef struct {
 
 typedef struct {
     bool mounted;
+    uint32_t mount_count;
+    uint32_t umount_count;
     uint32_t rx_transfers;
     uint32_t tx_transfers;
     uint32_t tx_failures;
     uint32_t xinput_commands;
     uint32_t lego_commands;
     uint32_t wake_commands;
+    uint32_t device_desc_requests;
+    uint32_t config_desc_requests;
+    uint32_t ms_os_string_requests;
+    uint32_t ms_os_compat_requests;
     uint8_t last_rx_length;
     uint8_t last_rx[USB_PACKET_MAX];
     uint8_t last_tx_length;

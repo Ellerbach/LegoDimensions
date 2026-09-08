@@ -10,8 +10,7 @@ if ([string]::IsNullOrWhiteSpace($PicoSdkPath)) {
 
 $firmwareRoot = $PSScriptRoot
 $projects = @(
-    @{ Name = 'pico_portal_simulator'; Board = 'pico2_w' },
-    @{ Name = 'pico_portal_xsm3_sidecar'; Board = 'pico2' }
+    @{ Name = 'pico_portal_simulator'; Board = 'pico2_w' }
 )
 
 foreach ($project in $projects) {
