@@ -19,6 +19,10 @@ The embedded messages use the same commands and checksums as non-Xbox portals.
 See [Lego Dimensions Communication Protocol](LegoDimensionsProtocol.md) for the
 command details and tag data format shared by all portals.
 
+For a packet-by-packet explanation of a real console exchange, including GIP
+identification, chunk acknowledgments, authentication certificate transfer, and
+wrapped LEGO wake attempts, see [Xbox One portal capture decode](XboxOnePortalCaptureDecoded.md).
+
 ## Status and scope
 
 The following behavior has been verified on an Xbox One portal with product ID

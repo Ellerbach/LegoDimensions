@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
   build:
 
@@ -37,4 +40,35 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal  
+      run: dotnet test --no-build --verbosity normal
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Install Arm toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libusb-1.0-0-dev
+
+    - name: Checkout Pico SDK 2.3.0
+      run: |
+        git init "$RUNNER_TEMP/pico-sdk"
+        git -C "$RUNNER_TEMP/pico-sdk" remote add origin https://github.com/raspberrypi/pico-sdk.git
+        git -C "$RUNNER_TEMP/pico-sdk" fetch --depth 1 origin 98a542c1a62fb549ffb5d66a3e5892b06276b670
+        git -C "$RUNNER_TEMP/pico-sdk" checkout --detach FETCH_HEAD
+        git -C "$RUNNER_TEMP/pico-sdk" submodule update --init --recursive --depth 1
+
+    - name: Build Pico firmware
+      env:
+        PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+        CMAKE_GENERATOR: Ninja
+      run: bash ./firmware/build-firmware.sh
+
+    - name: Upload firmware
+      uses: actions/upload-artifact@v6
+      with:
+        name: pico-firmware
+        path: firmware/pico_portal_simulator/build/pico_portal_simulator.uf2
