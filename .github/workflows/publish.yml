@@ -8,6 +8,8 @@ jobs:
 
   before_publish:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     outputs:
       pr-labels: ${{ steps.pr-labels.outputs.result }}
     steps:
@@ -28,6 +30,9 @@ jobs:
     
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
     if: needs.before_publish.outputs.pr-labels == 'true'
     needs: before_publish
     steps:
