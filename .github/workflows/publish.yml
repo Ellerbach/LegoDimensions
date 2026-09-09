@@ -31,10 +31,13 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pull-requests: read
     if: needs.before_publish.outputs.pr-labels == 'true'
     needs: before_publish
+    outputs:
+      changelog: ${{ steps.github_release.outputs.changelog }}
+      version: ${{ steps.gitversion.outputs.MajorMinorPatch }}
     steps:
     # Checkout sources. Depth=0 is for using GitVersion
     - name: Checkout
@@ -137,13 +140,31 @@ jobs:
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: release-artifacts
+        path: ./artifacts
+
+  release:
+    runs-on: ubuntu-latest
+    needs: publish
+    permissions:
+      contents: write
+    steps:
+    - name: Download release artifacts
+      uses: actions/download-artifact@v7
+      with:
+        name: release-artifacts
+        path: ./artifacts
+
     # Create GitHub release and CHANGELOG for Chocolatey and releases
     # NOTE: this is where we prepend "v" before the version in the tag/release
     - name: Create release
       uses: ncipollo/release-action@v1
       with:
         # no artifacts: ""
-        body: ${{steps.github_release.outputs.changelog}}
-        tag: "v${{ steps.gitversion.outputs.MajorMinorPatch }}"
+        body: ${{ needs.publish.outputs.changelog }}
+        tag: "v${{ needs.publish.outputs.version }}"
         token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: "**/artifacts/*.nupkg,**/artifacts/LegoDimensionsReadNfc,**/artifacts/LegoDimensionsRunner,**/artifacts/*.exe,**/artifacts/*.uf2"
+        artifacts: "artifacts/*.nupkg,artifacts/LegoDimensionsReadNfc,artifacts/LegoDimensionsRunner,artifacts/*.exe,artifacts/*.uf2"
