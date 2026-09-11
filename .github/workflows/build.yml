@@ -68,7 +68,7 @@ jobs:
       run: bash ./firmware/build-firmware.sh
 
     - name: Upload firmware
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: pico-firmware
         path: firmware/pico_portal_simulator/build/pico_portal_simulator.uf2
