@@ -1,4 +1,6 @@
+calculation:
+  ignore:
+    sha: []
+  mode: ContinuousDelivery
+output: {}
 workflow: GitHubFlow/v1
-mode: ContinuousDelivery
-ignore:
-  sha: []
