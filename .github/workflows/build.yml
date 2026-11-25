@@ -28,7 +28,7 @@ jobs:
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v5.0.0
       with:
-        versionSpec: '6.2.x'
+        versionSpec: '7.0.x'
     - name: Use GitVersion
       # Step id is used as reference for the output values
       id: gitversion 
